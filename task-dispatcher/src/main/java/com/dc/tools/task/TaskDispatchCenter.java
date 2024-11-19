@@ -3,12 +3,14 @@ package com.dc.tools.task;
 import com.codahale.metrics.MetricRegistry;
 import com.dc.tools.common.IdGenerator;
 import com.dc.tools.common.RandomIdGenerator;
+import com.dc.tools.common.annotaion.NonNull;
 import com.dc.tools.common.utils.StringUtils;
 import com.dc.tools.task.exception.TaskException;
 import com.dc.tools.task.processor.DefaultMultiProcessor;
 import com.dc.tools.task.processor.MultiTaskProcessor;
 import com.dc.tools.task.worker.DelayTaskWorker;
 import com.dc.tools.task.worker.NormalTaskWorker;
+import com.dc.tools.task.worker.RunnableTaskWrapper;
 import com.dc.tools.task.worker.SlowTaskWorker;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import lombok.Setter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,7 +29,11 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @author zy
  */
-public class TaskDispatchCenter implements TaskManager {
+public class TaskDispatchCenter implements TaskManager, Executor {
+
+    private static final TaskIdGenerator ID_GENERATOR = new DefaultTaskIdGenerator();
+
+    private static final TaskRouter TASK_ROUTER = new DefaultTaskRouter();
 
     /**
      * 任务处理器
@@ -43,7 +50,6 @@ public class TaskDispatchCenter implements TaskManager {
      * 当任务不为 {@link ExecutionTask} 类型 以及没有对应的  {@link TaskProcessor} 处理器时则采用默认处理器进行处理
      */
     private final MultiTaskProcessor<Task> defaultProcessor = new DefaultMultiProcessor();
-
 
 
     /**
@@ -116,12 +122,12 @@ public class TaskDispatchCenter implements TaskManager {
      * @param managerName   任务管理器名称
      * @param coreSize      核心worker数量
      * @param maxWorkerSize 最大worker数量
-     * @param minRatio      当worker的处理率 < timeRatio时则会尝试关闭
+     * @param timeout       当worker的空闲时间 > timeout时 尝试关闭当前worker线程
      */
     public TaskDispatchCenter(String managerName, int coreSize, int maxWorkerSize, long timeout, TimeUnit timeUnit) {
         this.managerName = managerName;
-        this.taskRouter = new DefaultTaskRouter();
-        this.idGenerator = new DefaultTaskIdGenerator();
+        this.taskRouter = TASK_ROUTER;
+        this.idGenerator = ID_GENERATOR;
         this.coreSize = coreSize;
         this.maxWorkerSize = maxWorkerSize;
         this.workers = new CopyOnWriteArrayList<>();
@@ -137,7 +143,6 @@ public class TaskDispatchCenter implements TaskManager {
     @SuppressWarnings("unchecked")
     private void initAllWorkers() {
         int processors = Runtime.getRuntime().availableProcessors();
-
         for (int i = 0; i < coreSize; i++) {
             NormalTaskWorker taskWorker = new NormalTaskWorker(this, metricRegistry, timeout);
             taskWorker.start();
@@ -161,6 +166,10 @@ public class TaskDispatchCenter implements TaskManager {
     public void start() {
         for (; ; ) {
             int s = state;
+            if (isRunning()) {
+                break;
+            }
+
             if ((s & 1) == 0 && UPDATER.compareAndSet(this, s, s | 1)) {
                 initAllWorkers();
                 UPDATER.set(this, (s >> 1 << 1));
@@ -187,7 +196,6 @@ public class TaskDispatchCenter implements TaskManager {
         wrapper.incrementRef();
 
         MultiTaskProcessor<Task> taskProcessor = multiProcessors.get(taskName);
-
         if (taskProcessor != null) {
             throw new TaskException("The task for processor is already exited, please use getProcessor method");
         }
@@ -279,6 +287,10 @@ public class TaskDispatchCenter implements TaskManager {
         return taskType.isDelay() ? delayWorkers : (taskType.isSlow() ? slowTaskWorkers : workers.toArray(new TaskWorker[0]));
     }
 
+    @Override
+    public void execute(@NonNull Runnable command) {
+        addTask(new RunnableTaskWrapper(command));
+    }
 
     public boolean isRunning() {
         return (state >>> BASE_SHIFT & RUNNING) != 0;
@@ -373,11 +385,17 @@ public class TaskDispatchCenter implements TaskManager {
     public void removeWorker(TaskWorker<?> taskWorker) {
         for (; ; ) {
             int s = state;
+
+            if ((s & MAGIC) >> 1 <= coreSize) {
+                break;
+            }
+
             if ((s & 1) == 0 && UPDATER.compareAndSet(this, s, s | 1)) {
                 //如果worker的大小大于核心worker数量，则踢除当前worker
-                if ((s >> 1 & MAGIC) > coreSize) {
+                if ((s & MAGIC) >> 1 > coreSize) {
                     workers.remove(taskWorker);
-                    taskWorker.shutdown();
+                    //异步关闭worker线程，避免阻塞
+                    execute(taskWorker::shutdown);
                 }
 
                 UPDATER.set(this, (s >> 1 << 1) - 2);
@@ -396,22 +414,24 @@ public class TaskDispatchCenter implements TaskManager {
 
     @Override
     public void addDelayedTask(DelayTask delayedTask, TaskContext taskContext) {
-        if (taskContext == null) {
-            taskContext = new TaskContext();
-        }
-
-        String internal = taskContext.getString(TaskContext.INTERNAL);
-
-        //存放当前任务的id
-        if (StringUtils.isEmpty(internal)) {
-            taskContext.put(TaskContext.TASK_ID, idGenerator.nextId());
-        }
-
-        taskContext.putIfAbsent(TaskContext.TASK_MANAGER, this);
-
-        //执行延迟任务
-        TaskWorker<? super Task> worker = taskRouter.getWorker(delayedTask, TaskType.DELAYED, delayWorkers);
-        worker.execute(delayedTask, taskContext);
+        //添加延迟任务
+        addTask(delayedTask, taskContext);
+//        if (taskContext == null) {
+//            taskContext = new TaskContext();
+//        }
+//
+//        String internal = taskContext.getString(TaskContext.INTERNAL);
+//
+//        //存放当前任务的id
+//        if (StringUtils.isEmpty(internal)) {
+//            taskContext.put(TaskContext.TASK_ID, idGenerator.nextId());
+//        }
+//
+//        taskContext.putIfAbsent(TaskContext.TASK_MANAGER, this);
+//
+//        //执行延迟任务
+//        TaskWorker<? super Task> worker = taskRouter.getWorker(delayedTask, TaskType.DELAYED, delayWorkers);
+//        worker.execute(delayedTask, taskContext);
     }
 
     @Override
@@ -419,6 +439,9 @@ public class TaskDispatchCenter implements TaskManager {
 
     }
 
+    public void setIdGenerator(TaskIdGenerator idGenerator) {
+        this.idGenerator = idGenerator;
+    }
 
     public void setTaskRouter(TaskRouter taskRouter) {
         this.taskRouter = taskRouter;
