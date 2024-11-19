@@ -30,10 +30,7 @@ public class SlowTaskWorker extends AbstractTaskWorker<Task> {
         return TaskType.SLOW;
     }
 
-    @Override
-    public TaskWorkerMetrics metrics() {
-        return null;
-    }
+
 
     @Override
     public void run() {
