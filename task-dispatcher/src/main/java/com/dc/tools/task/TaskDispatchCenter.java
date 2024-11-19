@@ -343,7 +343,7 @@ public class TaskDispatchCenter implements TaskManager {
 
             if ((s & 1) == 0 && UPDATER.compareAndSet(this, s, s | 1)) {
                 //添加新的worker线程
-                workers.add(new NormalTaskWorker(this));
+                workers.add(new NormalTaskWorker(this, metricRegistry, timeout));
                 UPDATER.set(this, (s + 2) >> 1 << 1);
             }
 
