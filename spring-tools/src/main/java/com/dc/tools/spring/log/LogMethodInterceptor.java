@@ -1,4 +1,4 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
 import lombok.extern.slf4j.Slf4j;
 import org.aopalliance.intercept.MethodInterceptor;

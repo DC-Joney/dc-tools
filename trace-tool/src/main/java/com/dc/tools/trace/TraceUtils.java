@@ -1,6 +1,9 @@
 package com.dc.tools.trace;
 
 
+import com.dc.tools.common.IdGenerator;
+import com.dc.tools.common.RandomIdGenerator;
+import com.dc.tools.common.SequenceIdGenerator;
 import lombok.experimental.UtilityClass;
 import org.slf4j.MDC;
 import org.springframework.util.StringUtils;
@@ -25,7 +28,7 @@ public class TraceUtils {
     /**
      * 生成唯一ID，不需要保证服务的不重复，只作用于单个服务请求
      */
-    private final Sequence sequence = new Sequence();
+    private final IdGenerator sequence = new SequenceIdGenerator();
 
     public static void initTrace(String logPrefix) {
         REQUEST_ID = logPrefix;
@@ -39,6 +42,13 @@ public class TraceUtils {
                 .filter(StringUtils::hasText)
                 //只有在定时任务执行时才会缺少requestId
                 .orElseGet(TraceUtils::decorate);
+    }
+
+    /**
+     * 获取当前链路的id
+     */
+    public Optional<String> dumpTraceId() {
+        return Optional.ofNullable(MDC.get(REQUEST_ID));
     }
 
     public Optional<String> getTraceId() {

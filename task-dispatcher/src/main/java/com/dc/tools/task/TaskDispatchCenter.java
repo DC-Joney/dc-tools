@@ -10,9 +10,12 @@ import lombok.Setter;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -53,6 +56,9 @@ public class TaskDispatchCenter implements TaskManager {
      */
     private TaskWorker<Task>[] slowTaskWorkers;
 
+
+    private final List<TaskWorker<Task>> workers;
+
     /**
      * 任务路由器
      */
@@ -69,11 +75,45 @@ public class TaskDispatchCenter implements TaskManager {
      */
     private final String managerName;
 
+    /**
+     * 核心worker数量
+     */
+    private final int coreSize;
 
-    public TaskDispatchCenter(String managerName) {
+    /**
+     * 最大worker数量
+     */
+    private final int maxWorkerSize;
+
+
+    /**
+     * worker 触发关闭的最小处理比率
+     */
+    private final double minRatio;
+
+    /**
+     * 当前任务中心的状态
+     */
+    private volatile int state;
+
+    private static final AtomicIntegerFieldUpdater<TaskDispatchCenter> UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(TaskDispatchCenter.class, "state");
+
+    /**
+     * @param managerName   任务管理器名称
+     * @param coreSize      核心worker数量
+     * @param maxWorkerSize 最大worker数量
+     * @param minRatio      当worker的处理率 < timeRatio时则会尝试关闭
+     */
+    public TaskDispatchCenter(String managerName, int coreSize, int maxWorkerSize, double minRatio) {
         this.managerName = managerName;
         this.taskRouter = new DefaultTaskRouter();
         this.idGenerator = new DefaultTaskIdGenerator();
+        this.coreSize = coreSize;
+        this.maxWorkerSize = maxWorkerSize;
+        this.minRatio = minRatio;
+        this.workers = new CopyOnWriteArrayList<>();
+        this.state = coreSize << 1;
         initAllWorkers();
     }
 
@@ -106,7 +146,7 @@ public class TaskDispatchCenter implements TaskManager {
     }
 
     public static TaskManager getInstance() {
-        return new TaskDispatchCenter("default task manager");
+        return new TaskDispatchCenter("default task manager",0,10,0.2d);
     }
 
 
@@ -239,9 +279,56 @@ public class TaskDispatchCenter implements TaskManager {
             taskType = task.taskType();
         }
 
+        //尝试去添加worker线程
+        if (!tryAddWorker()) {
+            //TODO: 抛弃任务，如果任务类型为重试任务则不会抛弃
+            return;
+        }
+
         //计算执行任务执行的worker节点
         TaskWorker<? super Task> taskWorker = route(task, taskType);
         taskWorker.execute(task, taskContext);
+    }
+
+    private boolean tryAddWorker() {
+        for (TaskWorker<Task> normalWorker : normalWorkers) {
+            double ratio = normalWorker.metrics().handleRatio();
+            if (ratio < 0.2d && workers.size() > coreSize) {
+                workers.remove(normalWorker);
+                normalWorker.shutdown();
+            }
+        }
+
+        for (; ; ) {
+            int s = state;
+
+            double ratio = 0;
+            for (TaskWorker<Task> normalWorker : normalWorkers) {
+                ratio = ratio + normalWorker.metrics().handleRatio();
+            }
+
+            //获取平均处理速率
+            double avgRatio = ratio / workers.size();
+
+            //如果平均的处理速率 < 50%, 那么可能需要扩容worker线程
+            if (avgRatio > 0.5D) {
+                return true;
+            }
+
+            //如果已经超过了最大worker的数量则直接返回
+            if (workers.size() >= maxWorkerSize) {
+                return false;
+            }
+
+            if ((s & 1) == 0 && UPDATER.compareAndSet(this, s, s | 1)) {
+                //添加新的worker线程
+                workers.add(new NormalTaskWorker(this));
+                UPDATER.set(this, (s + 2) >> 1 << 1);
+            }
+
+        }
+
+
     }
 
     @Override
@@ -284,8 +371,6 @@ public class TaskDispatchCenter implements TaskManager {
     public Collection<TaskProcessor<?>> getAllProcessors() {
         return Collections.unmodifiableCollection(multiProcessors.values());
     }
-
-
 
 
     @Override

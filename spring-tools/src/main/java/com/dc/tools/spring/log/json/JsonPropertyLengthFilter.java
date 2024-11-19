@@ -1,4 +1,4 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log.json;
 
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.PropertyFilter;

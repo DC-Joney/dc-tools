@@ -1,5 +1,6 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
+import com.dc.tools.spring.log.annotation.LogTrace;
 import com.dc.tools.trace.TraceUtils;
 
 /**

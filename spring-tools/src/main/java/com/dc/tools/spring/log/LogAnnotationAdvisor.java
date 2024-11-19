@@ -1,5 +1,7 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
+import com.dc.tools.spring.log.annotation.Log;
+import com.dc.tools.spring.log.annotation.LogTrace;
 import org.aopalliance.aop.Advice;
 import org.springframework.aop.support.StaticMethodMatcherPointcutAdvisor;
 import org.springframework.core.annotation.AnnotationUtils;

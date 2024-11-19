@@ -1,9 +1,9 @@
 package com.dc.tools.spring.validate;
 
 import cn.hutool.core.util.StrUtil;
-import com.dc.tools.common.exception.BusinessException;
-import com.dc.tools.common.exception.ParamException;
-import com.dc.tools.common.utils.BusinessAssert;
+import com.dc.tools.spring.exception.BusinessException;
+import com.dc.tools.spring.exception.ParamException;
+import com.dc.tools.spring.utils.BusinessAssert;
 import com.dc.tools.spring.validate.annotation.*;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;

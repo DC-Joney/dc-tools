@@ -2,8 +2,11 @@ package com.dc.cache;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.handler.codec.base64.Base64;
 import io.netty.util.CharsetUtil;
+import jodd.util.Bits;
+
+import java.nio.ByteBuffer;
+import java.util.Base64;
 
 /**
  * Generate sign hash for bytes
@@ -62,20 +65,11 @@ public class Hash {
 
     public static String hash128toBase64(ByteBuf objectState) {
         long[] hash = hash128(objectState);
-
-        ByteBuf buf = ByteBufAllocator.DEFAULT.buffer((2 * Long.SIZE) / Byte.SIZE);
-        try {
-            buf.writeLong(hash[0]).writeLong(hash[1]);
-            ByteBuf b = Base64.encode(buf);
-            try {
-                String s = b.toString(CharsetUtil.UTF_8);
-                return s.substring(0, s.length() - 2);
-            } finally {
-                b.release();
-            }
-        } finally {
-            buf.release();
-        }
+        byte[] bytes = new byte[16];
+        Bits.putLong(bytes,0, hash[0]);
+        Bits.putLong(bytes,8, hash[1]);
+        String base64 = Base64.getEncoder().encodeToString(bytes);
+        return base64.substring(0, base64.length() - 2);
     }
 
 }

@@ -1,7 +1,7 @@
 package com.dc.property.bytebuddy.advice;
 
+import com.dc.tools.common.spi.CommonServiceLoader;
 import com.google.common.collect.Lists;
-import com.turing.common.TuringServiceLoader;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
@@ -23,7 +23,7 @@ public class InterceptorFinder {
 
 
     static void loadAllEndpoints() {
-        List<ClassInterceptorEndpoint> interceptorEndpoints = TuringServiceLoader.load(ClassInterceptorEndpoint.class).sort();
+        List<ClassInterceptorEndpoint> interceptorEndpoints = CommonServiceLoader.load(ClassInterceptorEndpoint.class).sort();
         interceptorEndpoints.forEach(interceptorEndpoint -> definitionCache.add(interceptorEndpoint.getDefinition()));
         ElementMatcher.Junction<TypeDescription> classMatcher = ElementMatchers.none();
         for (ClassInterceptorDefinition definition : definitionCache) {

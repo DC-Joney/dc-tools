@@ -1,8 +1,8 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
 import ch.qos.logback.classic.pattern.ClassicConverter;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import com.turing.common.trace.opentelemetry.ArmsTraceUtils;
+import com.dc.tools.trace.TraceUtils;
 
 public class TraceIdMDCPatternConverter extends ClassicConverter {
 
@@ -13,6 +13,6 @@ public class TraceIdMDCPatternConverter extends ClassicConverter {
 
     @Override
     public String convert(ILoggingEvent event) {
-        return ArmsTraceUtils.getTraceId().orElse(null);
+        return TraceUtils.getTraceId().orElse(null);
     }
 }

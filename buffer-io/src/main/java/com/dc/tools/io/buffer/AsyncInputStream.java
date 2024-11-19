@@ -1,6 +1,6 @@
 package com.dc.tools.io.buffer;
 
-import com.dc.tools.common.utils.BusinessAssert;
+import com.dc.tools.common.utils.Assert;
 import com.dc.tools.common.utils.CloseTasks;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
@@ -54,7 +54,7 @@ public class AsyncInputStream implements Closeable {
      * @param filePath 文件路径
      */
     public AsyncInputStream(Path filePath, CloseTasks closeTasks, Executor executor) {
-        BusinessAssert.isTrue(Files.exists(filePath), "The file {} is not exists, please check it", filePath);
+        Assert.isTrue(Files.exists(filePath), "The file {} is not exists, please check it", filePath);
         this.closeTasks = closeTasks;
         this.executor = executor;
         //异步初始化当前文件内存

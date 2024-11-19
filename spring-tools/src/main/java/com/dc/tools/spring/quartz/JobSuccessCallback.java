@@ -1,6 +1,6 @@
 package com.dc.tools.spring.quartz;
 
-import com.turing.common.quartz.job.JobDefinition;
+import com.dc.tools.spring.quartz.job.JobDefinition;
 import org.quartz.JobExecutionContext;
 
 /**

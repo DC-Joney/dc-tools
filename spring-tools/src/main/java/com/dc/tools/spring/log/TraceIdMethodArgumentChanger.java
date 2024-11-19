@@ -1,7 +1,6 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
 import com.dc.tools.trace.TraceUtils;
-import com.turing.common.trace.TraceUtils;
 
 import java.util.Optional;
 
@@ -16,7 +15,7 @@ public class TraceIdMethodArgumentChanger implements MethodArgumentChanger {
 
     @Override
     public MethodInvocationArguments doChange(MethodInvocationArguments invocationArguments, MethodArgumentsChain chain) {
-        Optional<String> traceId = TraceUtils.dumpTrace();
+        Optional<String> traceId = TraceUtils.dumpTraceId();
         if (invocationArguments.isProxyInvocation() && traceId.isPresent()) {
             invocationArguments.addArgument(traceId.get());
             return chain.doChange(invocationArguments);

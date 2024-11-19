@@ -30,4 +30,9 @@ public interface TaskWorkerMetrics {
      */
     long handleTaskCount();
 
+
+    /**
+     * worker 处理的比率
+     */
+    double handleRatio();
 }

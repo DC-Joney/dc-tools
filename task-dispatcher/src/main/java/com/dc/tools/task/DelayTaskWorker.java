@@ -88,6 +88,8 @@ public class DelayTaskWorker extends ServiceThread implements TaskWorker<DelayTa
             //当前时间
             long nowTime = SystemClock.now();
 
+            long version = getVersion();
+
             //获取超时的任务
             List<DelayWheel.Task> expireTasks = delayWheel.advance(nowTime);
             metrics.finish(expireTasks.size());
@@ -124,14 +126,14 @@ public class DelayTaskWorker extends ServiceThread implements TaskWorker<DelayTa
             //如果时间轮中没有任务则阻塞
             if (earliestTime < 0) {
                 //直接阻塞等待
-                await(10, TimeUnit.SECONDS);
+                await(version);
                 continue;
             }
 
             //如果时间轮中有任务则阻塞等待
             if (earliestTime > 0) {
                 //进行睡眠
-                await((int) earliestTime, TimeUnit.MILLISECONDS);
+                await(version, (int) earliestTime, TimeUnit.MILLISECONDS);
             }
         }
 

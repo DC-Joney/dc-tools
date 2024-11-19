@@ -1,4 +1,4 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
 public interface MethodArgumentChanger {
 

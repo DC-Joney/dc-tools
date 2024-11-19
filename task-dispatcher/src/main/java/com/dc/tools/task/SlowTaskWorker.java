@@ -32,9 +32,9 @@ public class SlowTaskWorker extends AbstractTaskWorker<Task> {
     @Override
     public void run() {
         while (isRunning()) {
+            long version = getVersion();
 
             try {
-
                 //获取快照的suze
                 int snapshotSize = tasks.size();
 
@@ -44,9 +44,10 @@ public class SlowTaskWorker extends AbstractTaskWorker<Task> {
 
                 tasks.drain(this::processTask, snapshotSize);
             } finally {
-                await(interval, TimeUnit.MILLISECONDS);
+                await(version, interval, TimeUnit.MILLISECONDS);
             }
 
         }
     }
+
 }

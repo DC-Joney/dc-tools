@@ -1,4 +1,4 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
 import com.google.common.collect.Lists;
 import org.aopalliance.intercept.MethodInvocation;

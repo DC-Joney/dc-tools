@@ -1,4 +1,4 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
 import ch.qos.logback.classic.PatternLayout;
 

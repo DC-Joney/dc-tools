@@ -16,4 +16,8 @@ public class SequenceUtil {
     public String nextIdString() {
         return String.valueOf(idGenerator.nextId());
     }
+
+    public long nextId() {
+        return idGenerator.nextId();
+    }
 }

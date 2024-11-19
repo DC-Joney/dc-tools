@@ -1,7 +1,7 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log;
 
-import com.turing.common.annotaion.NonNull;
-import com.turing.common.utils.AopTargetUtils;
+import com.dc.tools.common.annotaion.NonNull;
+import com.dc.tools.spring.utils.AopTargetUtils;
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
 import org.aopalliance.intercept.MethodInvocation;

@@ -1,11 +1,11 @@
-package com.dc.tools.spring.log2.config;
+package com.dc.tools.spring.log.config;
 
-import ch.qos.logback.classic.PatternLayout;
-import com.dc.tools.spring.log2.*;
+import com.dc.tools.spring.log.*;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -23,11 +23,10 @@ import java.util.List;
  */
 @Slf4j
 @Configuration
-@ComponentScan(basePackages = "com.turing.log2")
-public class Log2Config {
+public class LogConfig {
 
     @Bean
-    public LogMethodInterceptor log2MethodInterceptor(List<ResultInterceptorHandler> interceptorHandlers, List<MethodArgumentChanger> changers) {
+    public LogMethodInterceptor log2MethodInterceptor( List<ResultInterceptorHandler> interceptorHandlers, List<MethodArgumentChanger> changers) {
         return new LogMethodInterceptor(interceptorHandlers, changers);
     }
 
@@ -38,8 +37,8 @@ public class Log2Config {
     }
 
     @Bean
-    public LogAspectHandler log2AspectHandler() {
-        return new LogAspectHandler();
+    public LogAspectHandler log2AspectHandler(LogSender logSender) {
+        return new LogAspectHandler(logSender);
     }
 
     @Bean
@@ -57,14 +56,24 @@ public class Log2Config {
         return new CompleteFutureResultHandler();
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public LogSender logSender (){
+        return new LogSender() {
+            @Override
+            public void sendLog(LogDetail logDetail) {
+                log.info("received log details is: {}", logDetail);
+            }
+        };
+    }
 
     @Configuration
     @ConditionalOnClass({DeferredResult.class})
     static class DeferredResultConfig {
 
         @Bean
-        public DeferredResultHandler deferredResultHandler() {
-            return new DeferredResultHandler();
+        public DeferredResultHandler deferredResultHandler(LogSender logSender) {
+            return new DeferredResultHandler(logSender);
         }
 
     }
@@ -75,14 +84,12 @@ public class Log2Config {
     static class ReactorResultConfig {
 
         @Bean
-        public ReactorResultHandler reactorResultHandler() {
-            return new ReactorResultHandler();
+        public ReactorResultHandler reactorResultHandler(LogSender logSender) {
+            return new ReactorResultHandler( logSender);
         }
 
     }
 
-    @Configuration
-    @ConditionalOnClass(PatternLayout.class)
     static class PatternLayoutConfig {
 
         static {

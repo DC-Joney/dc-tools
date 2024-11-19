@@ -1,6 +1,6 @@
 package com.dc.tools.spring.quartz;
 
-import com.turing.common.quartz.job.JobDefinition;
+import com.dc.tools.spring.quartz.job.JobDefinition;
 import org.quartz.JobExecutionContext;
 
 /**
@@ -8,7 +8,7 @@ import org.quartz.JobExecutionContext;
  *
  * @author zhangyang
  * @date 2020-09-30
- * @see com.turing.common.quartz.support.JobHandlerAdaptor
+ * @see 
  */
 public interface JobFailCallback {
 

@@ -65,6 +65,8 @@ public class DelayedTimer extends ServiceThread implements Timer {
 
         while (isRunning()) {
 
+            long version = getVersion();
+
             //当前时间
             long nowTime = SystemClock.now();
 
@@ -93,7 +95,7 @@ public class DelayedTimer extends ServiceThread implements Timer {
             //如果时间轮中没有任务则阻塞
             if (earliestTime < 0) {
                 //直接阻塞等待
-                await(10, TimeUnit.SECONDS);
+                await(version);
                 continue;
             }
 
@@ -101,7 +103,7 @@ public class DelayedTimer extends ServiceThread implements Timer {
             if (earliestTime > 0) {
 //                log.info("delay time is: " + earliestTime);
                 //进行睡眠
-                await((int) earliestTime, TimeUnit.MILLISECONDS);
+                await(version, (int) earliestTime, TimeUnit.MILLISECONDS);
             }
         }
 

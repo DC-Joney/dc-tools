@@ -1,8 +1,10 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log.json;
 
 import com.alibaba.fastjson.serializer.BeanContext;
 import com.alibaba.fastjson.serializer.ContextValueFilter;
 import org.springframework.core.annotation.AnnotationUtils;
+import com.dc.tools.spring.log.annotation.LogIgnore;
+
 
 import java.lang.reflect.Field;
 import java.util.Map;
@@ -13,9 +15,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author zy
  */
-public class LogIgnoreFiledSerializeFilter implements ContextValueFilter {
+public class Log2IgnoreFiledSerializeFilter implements ContextValueFilter {
 
-    public static final LogIgnoreFiledSerializeFilter INSTANCE = new LogIgnoreFiledSerializeFilter();
+    public static final Log2IgnoreFiledSerializeFilter INSTANCE = new Log2IgnoreFiledSerializeFilter();
 
     private static final Map<Field, Boolean> ignoreCache = new ConcurrentHashMap<>();
 

@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
@@ -14,6 +15,7 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
 
     protected final TaskManager taskManager;
 
+    private final AtomicBoolean started = new AtomicBoolean();
 
     protected final MpscUnboundedArrayQueue<ContextTask> tasks = new MpscUnboundedArrayQueue<>(1024);
 
@@ -30,6 +32,12 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
 
     @Override
     public void execute(T task, TaskContext taskContext) {
+
+        //如果当前worker已经关闭了，则不在添加任务
+        if (!started.get()) {
+            taskManager.addTask(task, taskContext);
+        }
+
         if (taskContext == null) {
             taskContext = new TaskContext();
         }
@@ -211,7 +219,9 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
 
     @Override
     public void shutdown() {
-        stop();
+        if (started.compareAndSet(false, true)) {
+            stop();
+        }
     }
 
 

@@ -47,6 +47,15 @@
             <scope>provided</scope>
         </dependency>
 
+        <dependency>
+            <artifactId>netty-buffer</artifactId>
+            <groupId>io.netty</groupId>
+        </dependency>
+
+        <dependency>
+            <artifactId>netty-common</artifactId>
+            <groupId>io.netty</groupId>
+        </dependency>
     </dependencies>
 
 </project>

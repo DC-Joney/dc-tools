@@ -16,7 +16,6 @@
 
 package com.dc.tools.notify;
 
-import com.dc.tools.common.exception.BusinessException;
 import com.dc.tools.common.spi.CommonServiceLoader;
 import com.dc.tools.common.utils.ClassUtils;
 import com.dc.tools.common.utils.MapUtil;
@@ -91,7 +90,7 @@ public class NotifyCenter {
                     return publisher;
                 } catch (Throwable ex) {
                     log.error("Service class newInstance has error : ", ex);
-                    throw new BusinessException("SERVER_ERROR", ex);
+                    throw new NotifyException("Service class newInstance has error : ", ex);
                 }
             }
         };

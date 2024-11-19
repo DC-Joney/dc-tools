@@ -33,8 +33,11 @@ public class NormalTaskWorker extends AbstractTaskWorker<Task> implements TaskWo
         while (isRunning()) {
             ContextTask contextTask = tasks.poll();
 
+            //版本号
+            long version = getVersion();
+
             if (contextTask == null) {
-                await(5, TimeUnit.SECONDS);
+                await(version);
                 continue;
             }
 

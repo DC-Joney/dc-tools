@@ -26,7 +26,17 @@ public interface TaskWorker <T extends Task>{
     TaskWorkerMetrics metrics();
 
     /**
+     * 唤醒worker线程
+     */
+    void wakeup();
+
+    /**
      * 停止worker线程
      */
     void shutdown();
+
+    /**
+     * 停止worker线程
+     */
+    void stop();
 }

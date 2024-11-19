@@ -1,10 +1,9 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log.annotation;
 
 import java.lang.annotation.*;
 
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface Log {
-
+public @interface LogTrace {
 }

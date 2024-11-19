@@ -1,6 +1,6 @@
 package com.dc.tools.spring.quartz;
 
-import com.turing.common.quartz.job.JobDefinition;
+import com.dc.tools.spring.quartz.job.JobDefinition;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.JobExecutionContext;
 

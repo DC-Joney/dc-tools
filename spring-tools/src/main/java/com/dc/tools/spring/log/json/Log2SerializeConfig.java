@@ -1,11 +1,11 @@
-package com.dc.tools.spring.log2;
+package com.dc.tools.spring.log.json;
 
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializeConfig;
 
 import java.util.Map;
 
-public class LogSerializeConfig {
+public class Log2SerializeConfig {
 
     public static final SerializeConfig serializeConfig = new SerializeConfig();
     static {
