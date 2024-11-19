@@ -5,9 +5,7 @@ import com.dc.tools.common.utils.SystemClock;
 import com.dc.tools.common.window.StaticsWindow;
 import com.dc.tools.task.TaskWorkerMetrics;
 
-import java.util.Queue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.DoubleAdder;
 import java.util.function.Supplier;
 
 /**
@@ -41,13 +39,9 @@ public class WorkerStats implements TaskWorkerMetrics {
 
     private volatile long lastHandleTime;
 
-    private final DoubleAdder handleTime = new DoubleAdder();
-
     private final Meter recievedMeter;
 
     private Timer timer;
-
-    private Queue<?> taskQueue;
 
     /**
      * @param registry metrics registry

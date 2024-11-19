@@ -13,7 +13,6 @@ import com.dc.tools.task.worker.SlowTaskWorker;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.checkerframework.checker.units.qual.N;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,9 +44,7 @@ public class TaskDispatchCenter implements TaskManager {
      */
     private final MultiTaskProcessor<Task> defaultProcessor = new DefaultMultiProcessor();
 
-    /**
-     * 用于处理及时的任务
-     */
+
 
     /**
      * 延迟任务处理器
@@ -60,6 +57,9 @@ public class TaskDispatchCenter implements TaskManager {
     private TaskWorker<Task>[] slowTaskWorkers;
 
 
+    /**
+     * 用于处理及时的任务
+     */
     private final List<TaskWorker<Task>> workers;
 
     /**
@@ -105,10 +105,9 @@ public class TaskDispatchCenter implements TaskManager {
 
     private static final int MAGIC = ~(-1 << BASE_SHIFT);
 
-    private static final int NEW = 1;
-    private static final int SHUTDOWN = 1 << 1;
+    private static final int SHUTDOWN = 1;
 
-    private static final int RUNNING = 1 << 2;
+    private static final int RUNNING = 1 << 1;
 
     private static final AtomicIntegerFieldUpdater<TaskDispatchCenter> UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(TaskDispatchCenter.class, "state");
@@ -126,7 +125,6 @@ public class TaskDispatchCenter implements TaskManager {
         this.coreSize = coreSize;
         this.maxWorkerSize = maxWorkerSize;
         this.workers = new CopyOnWriteArrayList<>();
-        this.state = coreSize << 1;
         //转为毫秒级别的超时时间
         this.timeout = timeUnit.convert(timeout == -1 ? Long.MAX_VALUE : timeout, TimeUnit.MILLISECONDS);
         this.metricRegistry = new MetricRegistry();
@@ -144,6 +142,7 @@ public class TaskDispatchCenter implements TaskManager {
             NormalTaskWorker taskWorker = new NormalTaskWorker(this, metricRegistry, timeout);
             taskWorker.start();
             workers.add(taskWorker);
+            UPDATER.set(this, state + 2);
         }
 
         slowTaskWorkers = new TaskWorker[processors >>> 1];
@@ -157,8 +156,17 @@ public class TaskDispatchCenter implements TaskManager {
             delayWorkers[i] = new DelayTaskWorker(this);
             delayWorkers[i].start();
         }
+    }
 
-
+    public void start() {
+        for (; ; ) {
+            int s = state;
+            if ((s & 1) == 0 && UPDATER.compareAndSet(this, s, s | 1)) {
+                initAllWorkers();
+                UPDATER.set(this, (s >> 1 << 1));
+                break;
+            }
+        }
     }
 
     public static TaskManager getInstance() {
@@ -272,15 +280,20 @@ public class TaskDispatchCenter implements TaskManager {
     }
 
 
+    public boolean isRunning() {
+        return (state >>> BASE_SHIFT & RUNNING) != 0;
+    }
+
     public boolean isShutdown() {
         return (state >>> BASE_SHIFT & SHUTDOWN) != 0;
     }
+
 
     @Override
     public void addTask(Task task, TaskContext taskContext) {
 
         //丢弃任务
-        if (isShutdown()) {
+        if (!isRunning()) {
             //TODO: 处理需要丢弃的任务
             return;
         }
