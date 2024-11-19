@@ -1,7 +1,10 @@
-package com.dc.tools.task;
+package com.dc.tools.task.processor;
 
 import cn.hutool.core.builder.EqualsBuilder;
 import cn.hutool.core.builder.HashCodeBuilder;
+import com.dc.tools.task.Task;
+import com.dc.tools.task.TaskContext;
+import com.dc.tools.task.TaskProcessor;
 import lombok.Getter;
 
 import java.util.Collection;

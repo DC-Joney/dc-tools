@@ -1,5 +1,10 @@
 package com.dc.tools.task;
 
+/**
+ * task worker thread
+ *
+ * @author zy
+ */
 public interface TaskWorker <T extends Task>{
 
     /**
@@ -25,10 +30,6 @@ public interface TaskWorker <T extends Task>{
      */
     TaskWorkerMetrics metrics();
 
-    /**
-     * 唤醒worker线程
-     */
-    void wakeup();
 
     /**
      * 停止worker线程

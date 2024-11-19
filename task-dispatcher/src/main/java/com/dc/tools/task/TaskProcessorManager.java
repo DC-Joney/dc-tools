@@ -1,9 +1,13 @@
 package com.dc.tools.task;
 
+import com.dc.tools.task.processor.MultiTaskProcessor;
+
 import java.util.Collection;
 
 /**
  * 用于添加任务处理器，处理相应的任务数据
+ *
+ * @author zy
  */
 public interface TaskProcessorManager {
 
@@ -47,9 +51,6 @@ public interface TaskProcessorManager {
      * @param create 如果不存在该task的处理器是否需要进行创建
      */
     <T extends Task> MultiTaskProcessor<T> newProcessor(String taskName);
-
-
-
 
 
     /**

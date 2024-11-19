@@ -11,6 +11,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.BiFunction;
 
+/**
+ * 任务的上下文信息
+ *
+ * @author zy
+ */
 public class TaskContext {
 
     private final Map<String, Object> context = new ConcurrentHashMap<>();
@@ -65,12 +70,12 @@ public class TaskContext {
     }
 
 
-    public TaskContext remove(String...keys) {
+    public TaskContext remove(String... keys) {
         Arrays.stream(keys).forEach(context::remove);
         return this;
     }
 
-     TaskContext clear() {
+    TaskContext clear() {
         context.clear();
         return this;
     }
@@ -110,7 +115,7 @@ public class TaskContext {
     }
 
     public Long taskId() {
-        return get(TASK_ID,  Long.class);
+        return get(TASK_ID, Long.class);
     }
 
 
@@ -123,7 +128,7 @@ public class TaskContext {
         return get(TASK_WORKER, WORKER_REFERENCE);
     }
 
-     void setTaskType(int type) {
+    public void setTaskType(int type) {
         put(INTERNAL_TYPE, new TaskType(type));
     }
 
@@ -136,13 +141,13 @@ public class TaskContext {
     }
 
 
-     List<TaskCallback> taskCallbacks() {
+    public List<TaskCallback> taskCallbacks() {
         return getOrDefault(TASK_CALLBACK_PROPERTY, Collections.emptyList(), TASK_CALLBACKS);
     }
 
 
     @SuppressWarnings("unchecked")
-    public TaskContext addCallback(TaskCallback taskCallback){
+    public TaskContext addCallback(TaskCallback taskCallback) {
         List<TaskCallback> tasks = (List<TaskCallback>) context.compute(TASK_CALLBACK_PROPERTY, (key, value) -> {
             if (value == null) {
                 value = new CopyOnWriteArrayList<>();
@@ -158,7 +163,6 @@ public class TaskContext {
     public String toString() {
         return context.toString();
     }
-
 
 
 }

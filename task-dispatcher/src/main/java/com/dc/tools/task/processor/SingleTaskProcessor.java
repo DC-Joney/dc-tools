@@ -1,5 +1,8 @@
-package com.dc.tools.task;
+package com.dc.tools.task.processor;
 
+import com.dc.tools.task.Task;
+import com.dc.tools.task.TaskContext;
+import com.dc.tools.task.TaskProcessor;
 import lombok.RequiredArgsConstructor;
 
 import java.util.Collection;

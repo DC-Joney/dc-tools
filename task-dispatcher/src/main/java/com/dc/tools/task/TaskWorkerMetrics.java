@@ -1,5 +1,10 @@
 package com.dc.tools.task;
 
+/**
+ * task worker metrics
+ *
+ * @author zy
+ */
 public interface TaskWorkerMetrics {
 
 

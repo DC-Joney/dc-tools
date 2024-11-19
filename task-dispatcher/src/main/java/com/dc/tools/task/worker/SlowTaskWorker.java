@@ -1,4 +1,9 @@
-package com.dc.tools.task;
+package com.dc.tools.task.worker;
+
+import com.dc.tools.task.Task;
+import com.dc.tools.task.TaskManager;
+import com.dc.tools.task.TaskType;
+import com.dc.tools.task.TaskWorkerMetrics;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;

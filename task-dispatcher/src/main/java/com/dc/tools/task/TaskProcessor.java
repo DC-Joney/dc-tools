@@ -3,6 +3,8 @@ package com.dc.tools.task;
 
 /**
  * 任务执行器
+ *
+ * @author zy
  */
 public interface TaskProcessor<T extends Task> {
 

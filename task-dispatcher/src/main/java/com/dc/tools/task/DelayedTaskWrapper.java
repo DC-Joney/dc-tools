@@ -1,5 +1,7 @@
 package com.dc.tools.task;
 
+import com.dc.tools.task.DelayTask;
+import com.dc.tools.task.Task;
 import com.dc.tools.timer.DelayedTask;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

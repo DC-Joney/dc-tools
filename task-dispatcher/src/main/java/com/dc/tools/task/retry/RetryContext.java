@@ -1,16 +1,18 @@
-package com.dc.tools.task;
+package com.dc.tools.task.retry;
 
-import com.dc.tools.task.retry.BackoffPolicy;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * 重试的上下文信息
+ */
 @RequiredArgsConstructor
 @Getter
 @ToString
-class RetryContext {
+public class RetryContext {
 
     /**
      * 最大重试次数

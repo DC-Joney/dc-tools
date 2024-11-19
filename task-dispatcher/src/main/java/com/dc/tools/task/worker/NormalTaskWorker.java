@@ -1,6 +1,7 @@
-package com.dc.tools.task;
+package com.dc.tools.task.worker;
 
-import java.util.concurrent.TimeUnit;
+import com.dc.tools.task.*;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 public class NormalTaskWorker extends AbstractTaskWorker<Task> implements TaskWorker<Task> {

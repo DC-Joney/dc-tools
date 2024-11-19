@@ -1,5 +1,7 @@
-package com.dc.tools.task;
+package com.dc.tools.task.worker;
 
+import com.dc.tools.task.Task;
+import com.dc.tools.task.TaskContext;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

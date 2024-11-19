@@ -2,6 +2,8 @@ package com.dc.tools.task;
 
 /**
  * 任务类型
+ *
+ * @author zy
  */
 public class TaskType {
 

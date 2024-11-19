@@ -1,8 +1,11 @@
-package com.dc.tools.task;
+package com.dc.tools.task.processor;
+
+import com.dc.tools.task.Task;
+import com.dc.tools.task.TaskProcessor;
 
 import java.util.Collection;
 
-public interface MultiTaskProcessor<T extends Task> extends TaskProcessor<T>{
+public interface MultiTaskProcessor<T extends Task> extends TaskProcessor<T> {
 
 
     MultiTaskProcessor<T> addLast(TaskProcessor<T> processor);

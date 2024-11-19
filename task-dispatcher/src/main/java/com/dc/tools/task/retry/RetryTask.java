@@ -1,9 +1,10 @@
-package com.dc.tools.task;
+package com.dc.tools.task.retry;
 
 
+import com.dc.tools.task.Task;
 import com.dc.tools.task.retry.BackoffPolicy;
 
-public interface RetryTask extends Task{
+public interface RetryTask extends Task {
 
     /**
      * 最大重试次数
