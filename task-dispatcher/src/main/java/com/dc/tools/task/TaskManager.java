@@ -35,4 +35,7 @@ public interface TaskManager extends TaskExecution, TaskProcessorManager {
      * 获取 生成的下一个taskId, 内部方法不建议调用，除非是在自定义的TaskContext的场景下使用
      */
     TaskIdGenerator idGenerator();
+
+
+
 }

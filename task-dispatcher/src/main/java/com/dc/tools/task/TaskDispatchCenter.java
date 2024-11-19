@@ -1,5 +1,6 @@
 package com.dc.tools.task;
 
+import com.codahale.metrics.MetricRegistry;
 import com.dc.tools.common.IdGenerator;
 import com.dc.tools.common.RandomIdGenerator;
 import com.dc.tools.common.utils.StringUtils;
@@ -12,6 +13,7 @@ import com.dc.tools.task.worker.SlowTaskWorker;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.checkerframework.checker.units.qual.N;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -49,7 +51,6 @@ public class TaskDispatchCenter implements TaskManager {
     /**
      * 用于处理及时的任务
      */
-    private TaskWorker<Task>[] normalWorkers;
 
     /**
      * 延迟任务处理器
@@ -92,14 +93,16 @@ public class TaskDispatchCenter implements TaskManager {
 
 
     /**
-     * worker 触发关闭的最小处理比率
-     */
-    private final double minRatio;
-
-    /**
      * 当前任务中心的状态
      */
     private volatile int state;
+
+    /**
+     * 触发worker 关闭的空闲时间
+     */
+    private final long timeout;
+
+    private final MetricRegistry metricRegistry;
 
     private static final AtomicIntegerFieldUpdater<TaskDispatchCenter> UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(TaskDispatchCenter.class, "state");
@@ -110,15 +113,17 @@ public class TaskDispatchCenter implements TaskManager {
      * @param maxWorkerSize 最大worker数量
      * @param minRatio      当worker的处理率 < timeRatio时则会尝试关闭
      */
-    public TaskDispatchCenter(String managerName, int coreSize, int maxWorkerSize, double minRatio) {
+    public TaskDispatchCenter(String managerName, int coreSize, int maxWorkerSize, long timeout, TimeUnit timeUnit) {
         this.managerName = managerName;
         this.taskRouter = new DefaultTaskRouter();
         this.idGenerator = new DefaultTaskIdGenerator();
         this.coreSize = coreSize;
         this.maxWorkerSize = maxWorkerSize;
-        this.minRatio = minRatio;
         this.workers = new CopyOnWriteArrayList<>();
         this.state = coreSize << 1;
+        //转为毫秒级别的超时时间
+        this.timeout = timeUnit.convert(timeout, TimeUnit.MILLISECONDS);
+        this.metricRegistry = new MetricRegistry();
         initAllWorkers();
     }
 
@@ -129,15 +134,16 @@ public class TaskDispatchCenter implements TaskManager {
     private void initAllWorkers() {
         int processors = Runtime.getRuntime().availableProcessors();
 
-        normalWorkers = new TaskWorker[processors];
-        for (int i = 0; i < normalWorkers.length; i++) {
-            normalWorkers[i] = new NormalTaskWorker(this);
-            normalWorkers[i].start();
+        for (int i = 0; i < coreSize; i++) {
+            NormalTaskWorker taskWorker = new NormalTaskWorker(this, metricRegistry, timeout);
+            taskWorker.start();
+            workers.add(taskWorker);
+            UPDATER.compareAndSet(this, state, state + 2);
         }
 
         slowTaskWorkers = new TaskWorker[processors >>> 1];
         for (int i = 0; i < slowTaskWorkers.length; i++) {
-            slowTaskWorkers[i] = new SlowTaskWorker(this);
+            slowTaskWorkers[i] = new SlowTaskWorker(this, metricRegistry);
             slowTaskWorkers[i].start();
         }
 
@@ -151,7 +157,7 @@ public class TaskDispatchCenter implements TaskManager {
     }
 
     public static TaskManager getInstance() {
-        return new TaskDispatchCenter("default task manager",0,10,0.2d);
+        return new TaskDispatchCenter("default task manager", 0, 10, 0.2d);
     }
 
 
@@ -226,7 +232,7 @@ public class TaskDispatchCenter implements TaskManager {
     public TaskWorker<? super Task> route(Task task, TaskType taskType) {
         TaskWorker<?>[] taskWorkers = this.taskWorkers(taskType);
         if (taskWorkers.length == 0) {
-            taskWorkers = normalWorkers;
+            taskWorkers = workers.toArray(new TaskWorker[0]);
         }
 
         return taskRouter.getWorker(task, taskType, taskWorkers);
@@ -285,10 +291,10 @@ public class TaskDispatchCenter implements TaskManager {
         }
 
         //尝试去添加worker线程
-        if (!tryAddWorker()) {
-            //TODO: 抛弃任务，如果任务类型为重试任务则不会抛弃
-            return;
-        }
+//        if (!tryAddWorker()) {
+//            //TODO: 抛弃任务，如果任务类型为重试任务则不会抛弃
+//            return;
+//        }
 
         //计算执行任务执行的worker节点
         TaskWorker<? super Task> taskWorker = route(task, taskType);
@@ -296,19 +302,13 @@ public class TaskDispatchCenter implements TaskManager {
     }
 
     private boolean tryAddWorker() {
-        for (TaskWorker<Task> normalWorker : normalWorkers) {
-            double ratio = normalWorker.metrics().handleRatio();
-            if (ratio < 0.2d && workers.size() > coreSize) {
-                workers.remove(normalWorker);
-                normalWorker.shutdown();
-            }
-        }
+
 
         for (; ; ) {
             int s = state;
 
             double ratio = 0;
-            for (TaskWorker<Task> normalWorker : normalWorkers) {
+            for (TaskWorker<Task> normalWorker : workers) {
                 ratio = ratio + normalWorker.metrics().handleRatio();
             }
 
@@ -334,6 +334,26 @@ public class TaskDispatchCenter implements TaskManager {
         }
 
 
+    }
+
+    /**
+     * 删除worker线程
+     *
+     * @param taskWorker worker线程
+     */
+    public void removeWorker(TaskWorker<?> taskWorker) {
+        workers.remove(taskWorker);
+        for (; ; ) {
+            int s = state;
+            if ((s & 1) == 0 && UPDATER.compareAndSet(this, s, s | 1)) {
+                UPDATER.set(this, s - 1);
+                break;
+            }
+        }
+
+        //保证当前线程有时间可以接受到最后存放的数据
+        Thread.yield();
+        taskWorker.shutdown();
     }
 
     @Override
@@ -382,6 +402,7 @@ public class TaskDispatchCenter implements TaskManager {
     public TaskIdGenerator idGenerator() {
         return idGenerator;
     }
+
 
     @RequiredArgsConstructor
     static class TaskProcessorWrapper {

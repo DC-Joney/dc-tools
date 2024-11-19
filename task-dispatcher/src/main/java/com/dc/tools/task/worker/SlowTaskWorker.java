@@ -1,5 +1,6 @@
 package com.dc.tools.task.worker;
 
+import com.codahale.metrics.MetricRegistry;
 import com.dc.tools.task.Task;
 import com.dc.tools.task.TaskManager;
 import com.dc.tools.task.TaskType;
@@ -19,8 +20,8 @@ public class SlowTaskWorker extends AbstractTaskWorker<Task> {
         this.interval = interval;
     }
 
-    public SlowTaskWorker(TaskManager taskManager) {
-        super("slow-worker-" + index.getAndIncrement(), taskManager);
+    public SlowTaskWorker(TaskManager taskManager, MetricRegistry metricRegistry) {
+        super("slow-worker-" + index.getAndIncrement(), taskManager, metricRegistry);
         this.interval = 3000;
     }
 

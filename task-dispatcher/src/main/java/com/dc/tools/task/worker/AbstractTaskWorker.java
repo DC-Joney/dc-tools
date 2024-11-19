@@ -1,7 +1,10 @@
 package com.dc.tools.task.worker;
 
+import com.codahale.metrics.MetricRegistry;
+import com.dc.tools.common.annotaion.NonNull;
 import com.dc.tools.common.thread.ServiceThread;
 import com.dc.tools.common.utils.CollectionUtils;
+import com.dc.tools.common.utils.SystemClock;
 import com.dc.tools.task.*;
 import com.dc.tools.task.processor.MultiTaskProcessor;
 import com.dc.tools.task.retry.BackoffPolicy;
@@ -11,11 +14,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
 import java.util.List;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
-public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread implements TaskWorker<T> {
+public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread implements TaskWorker<T>, Executor {
 
     protected final TaskManager taskManager;
 
@@ -23,10 +27,31 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
 
     protected final MpscUnboundedArrayQueue<ContextTask> tasks = new MpscUnboundedArrayQueue<>(1024);
 
+    /**
+     * 指标统计注册
+     */
+    private final MetricRegistry registry;
+
+
+    /**
+     * 当前worker线程的统计信息
+     */
+    private final WorkerStats workerStats;
+
+
+
+    public AbstractTaskWorker(String serviceName, TaskManager taskManager, MetricRegistry registry) {
+        super(serviceName);
+        this.taskManager = taskManager;
+        this.registry = registry;
+        this.workerStats = new WorkerStats(registry, serviceName, () -> (long) tasks.size());
+    }
 
     public AbstractTaskWorker(String serviceName, TaskManager taskManager) {
         super(serviceName);
+        this.registry = new MetricRegistry();
         this.taskManager = taskManager;
+        this.workerStats = new WorkerStats(registry, serviceName, () -> (long) tasks.size());
     }
 
     @Override
@@ -36,6 +61,8 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
 
     @Override
     public void execute(T task, TaskContext taskContext) {
+
+        workerStats.incReceivedTask();
 
         //如果当前worker已经关闭了，则不在添加任务
         if (!started.get()) {
@@ -58,9 +85,23 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
         tasks.offer(contextTask);
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public void execute(@NonNull Runnable command) {
+        execute((T) new RunnableTaskWrapper(command), null);
+    }
+
+    @Override
+    public TaskWorkerMetrics metrics() {
+        return workerStats;
+    }
+
 
     @SuppressWarnings("all")
     protected void processTask(ContextTask contextTask) {
+
+        long startTime = SystemClock.now();
+
         TaskContext taskContext = contextTask.getTaskContext();
         Task targetTask = contextTask.getDelegate();
         //获取任务的处理器
@@ -120,6 +161,10 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
             exception = e;
             //TODO: 打印日志
         } finally {
+            //记录完成的任务信息，重试任务算多个任务
+            workerStats.incHandledTask();
+            //记录任务消耗的时间
+            workerStats.recordTime(SystemClock.now() - startTime);
             boolean needRetry = handleRetry(taskContext, targetTask, exceptState, exception);
             if (!needRetry) {
                 //执行生命周期方法回调

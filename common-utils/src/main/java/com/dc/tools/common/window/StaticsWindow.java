@@ -52,6 +52,10 @@ public class StaticsWindow {
 
     private static final int MAX_MAGIC = ~(-1 << 16);
 
+    /**
+     * @param windowInterval 窗口的时间间隔
+     * @param windowSize     窗口的大小
+     */
     public StaticsWindow(int windowInterval, int windowSize) {
         Assert.isTrue(windowInterval <= MAX_MAGIC, "windowInterval must be <= {}", MAX_MAGIC);
         windowSize = power2(windowSize);

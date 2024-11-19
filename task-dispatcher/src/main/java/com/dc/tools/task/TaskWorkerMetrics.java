@@ -15,7 +15,7 @@ public interface TaskWorkerMetrics {
 
 
     /**
-     * 任务数量
+     * 目前积压的任务数量
      */
     long taskCount();
 
@@ -40,4 +40,11 @@ public interface TaskWorkerMetrics {
      * worker 处理的比率
      */
     double handleRatio();
+
+    /**
+     * 空闲时间
+     */
+    long freeTime();
 }
+
+
