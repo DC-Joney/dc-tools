@@ -7,6 +7,7 @@ import com.dc.tools.common.utils.SystemClock;
 import io.netty.util.concurrent.FastThreadLocal;
 import lombok.RequiredArgsConstructor;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  */
 //TODO: 1、整体代码性能需要优化，拒绝策略在执行时是否增加时间窗口概念，避免同一时间段内线程数暴增 <br/>
 //      2、检测消费比例的窗口在 窗口切换时会导致消费比率清空，是否需要当前窗口部分周期内 继承上游窗口比例
-
+@NotThreadSafe
 public class DynamicThreadPool extends ThreadPoolExecutor {
 
     private MetricRegistry metricRegistry;
