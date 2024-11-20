@@ -2,6 +2,7 @@ package com.dc.pool.thread;
 
 import com.codahale.metrics.MetricRegistry;
 import com.dc.tools.common.annotaion.NonNull;
+import com.dc.tools.common.utils.Assert;
 import com.dc.tools.common.utils.MethodInvoker;
 import com.dc.tools.common.utils.SystemClock;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -52,7 +53,7 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
      *
      * @apiNote
      */
-    private long interval;
+    private long windowInterval;
 
     /**
      * 周期内最多可以支持扩容多少个worker
@@ -77,8 +78,14 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
      */
     private long rejectCount;
 
+    /**
+     * 开始的时间
+     */
     private final long startTime;
 
+    /**
+     * 允许扩容的最大worker的数量
+     */
     private final int maxWorkers;
 
 
@@ -90,14 +97,42 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
     private static final int COUNT_MAGIC = ~(-1 << COUNT_SHIFT);
 
 
-    public DynamicThreadPool(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeUnit unit, BlockingQueue<Runnable> workQueue, ThreadFactory threadFactory, RejectedExecutionHandler handler) {
+    public DynamicThreadPool(int corePoolSize, int maximumPoolSize,
+                             long keepAliveTime, TimeUnit unit,
+                             BlockingQueue<Runnable> workQueue,
+                             long windowInterval,
+                             ThreadFactory threadFactory,
+                             RejectedExecutionHandler handler) {
         super(corePoolSize, maximumPoolSize, keepAliveTime, unit, workQueue, threadFactory, EMPTY);
-        this.poolStates = new PoolStates("", metricRegistry, interval, this);
+        this.poolStates = new PoolStates("", metricRegistry, windowInterval, this);
         this.startTime = SystemClock.now();
         this.maxWorkers = maximumPoolSize + corePoolSize;
         setRejectedExecutionHandler(new RejectHandlerWrapper(handler));
         initMethodInvoker();
     }
+
+    public void setWindowMaxWorker(int windowMaxWorker) {
+        Assert.isTrue(windowMaxWorker <= COUNT_MAGIC >>> 1, "window time increment maxWorkers must be <", COUNT_MAGIC >>> 1);
+        this.windowMaxWorker = windowMaxWorker;
+    }
+
+    public void setWindowInterval(long interval) {
+        this.windowInterval = interval;
+    }
+
+    public void setQueueSize(int queueSize) {
+        this.queueSize = queueSize;
+    }
+
+    public void setRejectCount(long rejectCount) {
+        this.rejectCount = rejectCount;
+    }
+
+    public void setRatio(double ratio) {
+        this.ratio = ratio;
+    }
+
+
 
     private void initMethodInvoker() {
         try {
@@ -114,6 +149,24 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
     @Override
     public void execute(@NonNull Runnable command) {
         poolStates.incAdd();
+
+
+
+        super.execute(command);
+    }
+
+    @Override
+    protected void beforeExecute(Thread t, Runnable r) {
+        //尝试去添加worker线程
+        //TODO: 是否需要将tryAddWorker 移动到execute方法中
+        tryAddWorker();
+        timeThreadLocal.set(SystemClock.now());
+        //有的任务执行时间过长，所以不被计算在最终结果
+        poolStates.incComplete();
+        super.beforeExecute(t, r);
+    }
+
+    private void tryAddWorker() {
         for (; ; ) {
 
             //如果触发的比例以及队列的数量不满足需求
@@ -121,7 +174,7 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
                 break;
             }
 
-            if (getPoolSize() < getCorePoolSize() || getPoolSize() >= getMaximumPoolSize()) {
+            if (getPoolSize() < getCorePoolSize() || getPoolSize() >= maxWorkers) {
                 break;
             }
 
@@ -131,22 +184,28 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
             long lastTime = state >>> COUNT_SHIFT;
             long counter = (state & COUNT_MAGIC) >>> 1;
             //如果在当前的时间间隔内已经扩容到支持的最大worker数量
-            if (counter >= windowMaxWorker && nowTime - lastTime <= interval) {
+            if (counter >= windowMaxWorker && nowTime - lastTime <= windowInterval) {
                 break;
             }
 
             if ((s & 1) == 0 && STATE_UPDATER.compareAndSet(this, s, s | 1)) {
                 try {
                     //重置时间
-                    if (nowTime - lastTime >= interval) {
+                    if (nowTime - lastTime >= windowInterval) {
                         s = nowTime << COUNT_SHIFT;
                     }
 
                     //记录扩容的worker数量
                     s += 2;
 
+                    //如果已经扩容到最大线程池还是无法解决问题，则继续膨胀
+                    if (getPoolSize() >= getMaximumPoolSize() && getPoolSize() < maxWorkers) {
+                        //设置最大线程池数量
+                        setMaximumPoolSize(getMaximumPoolSize() + 1);
+                    }
+
                     //如果线程池目前的处理小于 则
-                    if (getPoolSize() >= getCorePoolSize() && getPoolSize() < getMaximumPoolSize()) {
+                    if (getPoolSize() >= getCorePoolSize()) {
                         methodInvoker.invoke();
                     }
                 } catch (Exception e) {
@@ -158,18 +217,12 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
 
                 break;
             }
+
+            //当前线程释放cpu时间片，避免过多的空自旋
+            Thread.yield();
+
         }
 
-
-        super.execute(command);
-    }
-
-    @Override
-    protected void beforeExecute(Thread t, Runnable r) {
-        timeThreadLocal.set(SystemClock.now());
-        //有的任务执行时间过长，所以不被计算在最终结果
-        poolStates.incComplete();
-        super.beforeExecute(t, r);
     }
 
 
@@ -195,11 +248,6 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
             DynamicThreadPool.this.poolStates.incReject();
-            if (increment.addAndGet(2) < maxWorkers) {
-                setMaximumPoolSize(increment.get());
-                executor.execute(r);
-            }
-
             this.delegate.rejectedExecution(r, executor);
         }
     }
