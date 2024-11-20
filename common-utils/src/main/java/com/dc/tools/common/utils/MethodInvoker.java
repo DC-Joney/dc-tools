@@ -162,7 +162,7 @@ public class MethodInvoker {
 
 		// Try to get the exact method first.
 		try {
-			this.methodObject = targetClass.getMethod(targetMethod, argTypes);
+			this.methodObject = targetClass.getDeclaredMethod(targetMethod, argTypes);
 		}
 		catch (NoSuchMethodException ex) {
 			// Just rethrow exception if we can't get any match.
