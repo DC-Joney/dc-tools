@@ -40,11 +40,10 @@ public class PoolStates {
     private final Counter rejectCounter;
 
     /**
-     *
-     * @param poolName 线程池名称
-     * @param registry 指标
+     * @param poolName       线程池名称
+     * @param registry       指标
      * @param windowInterval 统计的窗口间隔
-     * @param executor 线程池
+     * @param executor       线程池
      */
     public PoolStates(String poolName, MetricRegistry registry, long windowInterval, ThreadPoolExecutor executor) {
         this.registry = registry;
@@ -137,10 +136,11 @@ public class PoolStates {
     /**
      * 一分钟内的消费数据
      */
-    public double oneMinuteRatio() {
+    public double executeRatio() {
         return timeWindow.ratio();
     }
 
+    //TODO: 是否采用滑动窗口实现，如果采用滑动窗口如何避免上游的值影响到下游
     static class SlidingTimeWindow {
 
         /**
@@ -172,6 +172,8 @@ public class PoolStates {
 
         private final long windowInterval;
 
+        private volatile double preTicks;
+
         SlidingTimeWindow(Supplier<Integer> queueSupplier, long windowInterval) {
             this.queueSupplier = queueSupplier;
             this.startTime = SystemClock.now();
@@ -190,10 +192,11 @@ public class PoolStates {
                     break;
                 }
                 if ((lastUpdateTime & 1) == 0 && UPDATER.compareAndSet(this, time, time | 1)) {
+                    this.preTicks = executeRatio();
+                    this.snapshotQueueSize = queueSupplier.get();
                     this.addCounter.reset();
                     this.handleCounter.reset();
                     this.lastUpdateTime = (SystemClock.now() - startTime) << 1;
-                    this.snapshotQueueSize = queueSupplier.get();
                 }
             }
 
@@ -230,6 +233,11 @@ public class PoolStates {
                 Thread.yield();
             }
 
+            long nowTime = SystemClock.now() - startTime;
+            return nowTime - (nowTime - (lastUpdateTime >>> 1)) < (windowInterval >>> 3) ? preTicks : executeRatio();
+        }
+
+        private double executeRatio() {
             long taskCount = snapshotQueueSize + addCounter.sum() + rejectCounter.sum();
             return handleCounter.sum() / taskCount == 0 ? 1 : taskCount;
         }
