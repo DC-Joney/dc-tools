@@ -234,7 +234,7 @@ public class PoolStates {
             }
 
             long nowTime = SystemClock.now() - startTime;
-            return nowTime - (nowTime - (lastUpdateTime >>> 1)) < (windowInterval >>> 3) ? preTicks : executeRatio();
+            return nowTime - (nowTime - (lastUpdateTime >>> 1)) < (windowInterval >>> 4) ? preTicks : executeRatio();
         }
 
         private double executeRatio() {
