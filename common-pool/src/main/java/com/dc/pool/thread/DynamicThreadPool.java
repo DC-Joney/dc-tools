@@ -10,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
@@ -30,6 +29,9 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
 
     private MetricRegistry metricRegistry;
 
+    /**
+     * 线程池的监控信息
+     */
     private final PoolStates poolStates;
 
     private static final FastThreadLocal<Long> timeThreadLocal = new FastThreadLocal<>();
@@ -38,6 +40,9 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
 
     };
 
+    /**
+     * 用于添加 worker线程
+     */
     private final MethodInvoker methodInvoker = new MethodInvoker();
 
     /**
@@ -89,10 +94,7 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
     private final int maxWorkers;
 
 
-    private final AtomicInteger increment = new AtomicInteger();
-
     private static final int COUNT_SHIFT = 9;
-
 
     private static final int COUNT_MAGIC = ~(-1 << COUNT_SHIFT);
 
@@ -149,9 +151,6 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
     @Override
     public void execute(@NonNull Runnable command) {
         poolStates.incAdd();
-
-
-
         super.execute(command);
     }
 
@@ -170,7 +169,7 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
         for (; ; ) {
 
             //如果触发的比例以及队列的数量不满足需求
-            if (poolStates.oneMinuteRatio() >= ratio || getQueue().size() < queueSize) {
+            if (poolStates.executeRatio() >= ratio || getQueue().size() < queueSize) {
                 break;
             }
 
@@ -204,7 +203,7 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
                         setMaximumPoolSize(getMaximumPoolSize() + 1);
                     }
 
-                    //如果线程池目前的处理小于 则
+                    //如果满足条件则添加worker线程
                     if (getPoolSize() >= getCorePoolSize()) {
                         methodInvoker.invoke();
                     }

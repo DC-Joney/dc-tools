@@ -58,7 +58,8 @@ public class LogAspectHandler extends AbstractLogResultInterceptorHandler {
                     builder.sourceType(SourceType.EXCEPTION);
                 }
 
-                builder.result(result);
+                builder.result(result)
+                        .exception(ex);
                 logSender.sendLog(builder.build());
 
             });

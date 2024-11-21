@@ -73,7 +73,8 @@ public class DeferredResultHandler extends AbstractLogResultInterceptorHandler {
                     builder.sourceType(SourceType.EXCEPTION);
                 }
 
-                builder.result(result);
+                builder.result(result)
+                        .exception(ex);
                 sender.sendLog(builder.build());
             });
         }
