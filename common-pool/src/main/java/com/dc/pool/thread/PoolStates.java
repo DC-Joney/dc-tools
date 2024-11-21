@@ -191,7 +191,7 @@ public class PoolStates {
                 if (!isDep()) {
                     break;
                 }
-                if ((lastUpdateTime & 1) == 0 && UPDATER.compareAndSet(this, time, time | 1)) {
+                if ((time & 1) == 0 && UPDATER.compareAndSet(this, time, time | 1)) {
                     this.preTicks = executeRatio();
                     this.snapshotQueueSize = queueSupplier.get();
                     this.addCounter.reset();
