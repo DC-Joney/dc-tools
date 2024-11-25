@@ -146,6 +146,12 @@
             <scope>provided</scope>
         </dependency>
 
+
+        <dependency>
+            <groupId>com.dc</groupId>
+            <artifactId>memory-cache</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
 </project>
