@@ -18,29 +18,63 @@ import java.util.function.BiFunction;
  */
 public class TaskContext {
 
+    /**
+     * 上下文 context
+     */
     private final Map<String, Object> context = new ConcurrentHashMap<>();
 
+    /**
+     * task id attribute
+     */
     public static final String TASK_ID = TaskContext.class.getName() + "_internal_task_id";
 
+
+    /**
+     * task worker attribute
+     */
     public static final String TASK_WORKER = TaskContext.class.getName() + "_internal_task_worker";
 
     /**
      * 重试的次数
      */
-
     public static final String RETRY = TaskContext.class.getName() + "_internal_retry";
 
+    /**
+     * 当任务为内部流转时，会添加interval属性，用于对其进行标注
+     */
     public static final String INTERNAL = TaskContext.class.getName() + "_internal";
 
+    /**
+     * 内部流转的任务类型
+     */
     public static final String INTERNAL_TYPE = TaskContext.class.getName() + "_internal_type";
 
 
-    public static final String TASK_LIFE_CYCLE = TaskContext.class.getName() + "internal_life_cycle";
-    public static final String PROCESSOR_LIFE_CYCLE = TaskContext.class.getName() + "internal_processor_life_cycle";
+    /**
+     * 任务的生命周期，因为任务可被重试，重试的任务不会回调其生命周期方法
+     */
+    public static final String TASK_LIFE_CYCLE = TaskContext.class.getName() + "_internal_life_cycle";
 
-    public static final String TASK_MANAGER = TaskContext.class.getName() + "internal_task_manager";
+    /**
+     * processor 生命周期方法回调，因为任务可被重试，重试的任务不会回调其生命周期方法
+     */
+    public static final String PROCESSOR_LIFE_CYCLE = TaskContext.class.getName() + "_internal_processor_life_cycle";
 
-    public static final String TASK_CALLBACK_PROPERTY = TaskContext.class.getName() + "internal_task_callbacks";
+    /**
+     * 存储当前用于执行任务的 taskManager. {@link TaskManager}
+     */
+    public static final String TASK_MANAGER = TaskContext.class.getName() + "_internal_task_manager";
+
+    /**
+     * 当任务执行完成后需要对任务进行触发回调
+     */
+    public static final String TASK_CALLBACK_PROPERTY = TaskContext.class.getName() + "_internal_task_callbacks";
+
+
+    /**
+     * 当任务执行完成后需要对TaskContext内部缓存的所有的属性进行清除, 默认为true
+     */
+    public static final String CLEAR_ALL_PROPERTY = TaskContext.class.getName() + "_clear_all";
 
 
     public static final TypeReference<TaskWorker<? extends Task>> WORKER_REFERENCE = new TypeReference<TaskWorker<? extends Task>>() {
@@ -164,5 +198,20 @@ public class TaskContext {
         return context.toString();
     }
 
+    public boolean isClearAll() {
+        return getOrDefault(CLEAR_ALL_PROPERTY, true, Boolean.class);
+    }
 
+    public TaskContext setClearAll(boolean clear) {
+        context.put(CLEAR_ALL_PROPERTY, clear);
+        return this;
+    }
+
+
+    /**
+     * 清除当前上下文中的所有信息
+     */
+    public void removeAll() {
+        context.clear();
+    }
 }

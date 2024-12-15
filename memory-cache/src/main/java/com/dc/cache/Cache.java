@@ -1,6 +1,9 @@
 package com.dc.cache;
 
+import org.checkerframework.checker.units.qual.C;
+
 import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -35,21 +38,22 @@ public interface Cache<K, V> extends Map<K, V> {
     /**
      * 获取对应的数据，如果数据不存在则会通过{@param mappingFunction}进行添加
      * 并且会设置相应的缓存时间，如果数据存在则会直接刷新缓存时间
-     * @param key 缓存key
+     *
+     * @param key             缓存key
      * @param mappingFunction 当value不存在时创建对应的value
-     * @param ttl 缓存的过期时间
-     * @param ttlUnit 时间单位
+     * @param ttl             缓存的过期时间
+     * @param ttlUnit         时间单位
      */
     V get(K key, Function<K, V> mappingFunction, long ttl, TimeUnit ttlUnit);
 
     /**
      * 获取对应的数据，并且刷新过期时间
-     * @param key 缓存key
-     * @param ttl 缓存的过期时间
+     *
+     * @param key     缓存key
+     * @param ttl     缓存的过期时间
      * @param ttlUnit 时间单位
      */
     V getAndRefresh(K key, long ttl, TimeUnit ttlUnit);
-
 
 
     default V put(K key, V value) {
@@ -61,5 +65,18 @@ public interface Cache<K, V> extends Map<K, V> {
 
 
     void removeCache(K cacheKey);
+
+
+    interface Builder<K, V> {
+
+        Builder<K, V> cacheName(String cacheName);
+
+        Builder<K, V> maxSize(int maxSize);
+
+        Builder<K, V> executor(Executor executor);
+
+        Cache<K, V> build();
+    }
+
 
 }

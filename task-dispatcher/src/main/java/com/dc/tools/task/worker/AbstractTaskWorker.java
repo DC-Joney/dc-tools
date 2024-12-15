@@ -39,7 +39,6 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
     private final WorkerStats workerStats;
 
 
-
     public AbstractTaskWorker(String serviceName, TaskManager taskManager, MetricRegistry registry) {
         super(serviceName);
         this.taskManager = taskManager;
@@ -61,13 +60,13 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
 
     @Override
     public void execute(T task, TaskContext taskContext) {
-
-        workerStats.incReceivedTask();
-
         //如果当前worker已经关闭了，则不在添加任务
         if (!started.get()) {
             taskManager.addTask(task, taskContext);
         }
+
+        workerStats.incReceivedTask();
+
 
         if (taskContext == null) {
             taskContext = new TaskContext();
@@ -120,6 +119,7 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
             }
         }
 
+        //这里是为了保证回调单词
         Integer processorState = taskContext.get(TaskContext.PROCESSOR_LIFE_CYCLE, Integer.class);
         if (processorState == null) {
             taskContext.put(TaskContext.PROCESSOR_LIFE_CYCLE, 1);
@@ -167,29 +167,28 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
             workerStats.recordTime(SystemClock.now() - startTime);
             boolean needRetry = handleRetry(taskContext, targetTask, exceptState, exception);
             if (!needRetry) {
+
                 //执行生命周期方法回调
-                if (taskContext.contains(TaskContext.TASK_LIFE_CYCLE)) {
-                    try {
-                        targetTask.after(exception, taskContext);
-                    } catch (Exception e) {
-                        //TODO 添加异常信息 表示在执行生命周期方法时出现异常
-                        log.error("Execute task after method error, taskName is: {}, cause is: {}", targetTask.taskName(), e);
-                    }
+                try {
+                    targetTask.after(exception, taskContext);
+                } catch (Exception e) {
+                    log.error("Execute task after method error, taskName is: {}, cause is: {}", targetTask.taskName(), e);
                 }
 
+                //如果执行异常，那么在最后会获取最新捕获的异常信息进行回调
                 if (targetTask instanceof ResultAsyncTask && exception != null) {
                     ((ResultAsyncTask<?>) targetTask).setException(exception);
                 }
 
-                if (taskContext.contains(TaskContext.PROCESSOR_LIFE_CYCLE)) {
-                    try {
-                        taskProcessor.after(targetTask, taskContext, exception);
-                    } catch (Exception e) {
-                        //TODO 添加异常信息 表示在执行生命周期方法时出现异常
-                        log.error("Execute taskProcessor after method error, taskName is: {}, cause is: {}", targetTask.taskName(), e);
-                    }
+                //执行processor 生命周期方法回调
+                try {
+                    taskProcessor.after(targetTask, taskContext, exception);
+                } catch (Exception e) {
+                    //TODO 添加异常信息 表示在执行生命周期方法时出现异常
+                    log.error("Execute taskProcessor after method error, taskName is: {}, cause is: {}", targetTask.taskName(), e);
                 }
 
+                //TaskCallback方法回调
                 List<TaskCallback> taskCallbacks = taskContext.taskCallbacks();
                 if (!CollectionUtils.isEmpty(taskCallbacks)) {
                     for (TaskCallback taskCallback : taskCallbacks) {
@@ -201,12 +200,16 @@ public abstract class AbstractTaskWorker<T extends Task> extends ServiceThread i
                     }
                 }
 
-                //清除重试相关的属性
-                taskContext.remove(TaskContext.RETRY, TaskContext.TASK_ID, TaskContext.TASK_LIFE_CYCLE,
-                        TaskContext.INTERNAL, TaskContext.TASK_WORKER, TaskContext.PROCESSOR_LIFE_CYCLE);
+                if (taskContext.isClearAll()) {
+                    taskContext.removeAll();
+                } else {
+                    //清除本次任务执行的上下文信息，保留业务表示
+                    taskContext.remove(TaskContext.RETRY, TaskContext.TASK_ID, TaskContext.TASK_LIFE_CYCLE,
+                            TaskContext.INTERNAL, TaskContext.TASK_WORKER,
+                            TaskContext.RETRY, TaskContext.INTERNAL_TYPE, TaskContext.PROCESSOR_LIFE_CYCLE, TaskContext.TASK_MANAGER);
+
+                }
             }
-
-
         }
     }
 

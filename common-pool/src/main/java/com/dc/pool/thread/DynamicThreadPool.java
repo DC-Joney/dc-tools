@@ -93,6 +93,8 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
      */
     private final int maxWorkers;
 
+    private  int maxSpinCount;
+
 
     private static final int COUNT_SHIFT = 9;
 
@@ -166,6 +168,9 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
     }
 
     private void tryAddWorker() {
+
+        int spinCount = 0;
+
         for (; ; ) {
 
             //如果触发的比例以及队列的数量不满足需求
@@ -184,6 +189,12 @@ public class DynamicThreadPool extends ThreadPoolExecutor {
             long counter = (state & COUNT_MAGIC) >>> 1;
             //如果在当前的时间间隔内已经扩容到支持的最大worker数量
             if (counter >= windowMaxWorker && nowTime - lastTime <= windowInterval) {
+                break;
+            }
+
+            //TODO: 自旋补偿是否采用时间来计算，当时间大于10ms-50ms时，退出自旋
+            //当系统底层资源耗尽导致 创建线程过慢时需要跳出循环，避免由于系统底层资源问题而导致的死循环
+            if (spinCount++ > maxSpinCount) {
                 break;
             }
 

@@ -2,8 +2,13 @@ package com.dc.tools.task.retry;
 
 
 import com.dc.tools.task.Task;
-import com.dc.tools.task.retry.BackoffPolicy;
 
+/**
+ *
+ * 可被用于重试的任务
+ *
+ * @author zy
+ */
 public interface RetryTask extends Task {
 
     /**

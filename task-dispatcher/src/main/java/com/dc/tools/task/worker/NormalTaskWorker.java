@@ -7,6 +7,11 @@ import com.dc.tools.task.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * 用于执行正常任务的worker线程
+ *
+ * @author zy
+ */
 public class NormalTaskWorker extends AbstractTaskWorker<Task> implements TaskWorker<Task> {
 
     private static final AtomicLong index = new AtomicLong();

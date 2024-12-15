@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author zhangyang
  */
-public interface BufferPool {
+public interface BufferPool<BUF> {
 
     /**
      * 从内存池中获取一块内存，如果内存池没有足够的内存就会一直阻塞直到有足够的内存或者是阻塞时间达到 {@code maxTimeToBlock}
@@ -17,7 +17,7 @@ public interface BufferPool {
      * @param maxTimeToBlock 当内存池没有足够的内存时需要等待的时间
      * @return 返回开辟的ByteBuffer
      */
-    ByteBuffer allocate(int size, long maxTimeToBlock, TimeUnit timeUnit) throws InterruptedException;
+    BUF allocate(int size, long maxTimeToBlock, TimeUnit timeUnit) throws InterruptedException;
 
     /**
      * 不建议使用这种方式，因为这会导致线程一直阻塞直到内存池有足够的内存
@@ -26,7 +26,7 @@ public interface BufferPool {
      * @return 返回开辟的ByteBuffer
      */
     @Deprecated
-    default ByteBuffer allocate(int size) throws InterruptedException {
+    default BUF allocate(int size) throws InterruptedException {
         return allocate(size, -1, TimeUnit.MILLISECONDS);
     }
 
@@ -35,7 +35,7 @@ public interface BufferPool {
      *
      * @param buffer 从内存池中获取的内存
      */
-    void deallocate(ByteBuffer buffer);
+    void deallocate(BUF buffer);
 
     /**
      * 内存池中未开辟的内存，既剩余的内存空间

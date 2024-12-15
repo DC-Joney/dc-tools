@@ -25,7 +25,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @see BufferPool
  */
 @Slf4j
-public class NoPaddingBufferPool implements BufferPool {
+public class NoPaddingBufferPool implements BufferPool<ByteBuffer> {
 
     /**
      * 全部内存大小

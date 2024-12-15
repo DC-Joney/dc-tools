@@ -94,7 +94,6 @@ public class TaskDispatchCenter implements TaskManager, Executor {
      */
     private final int maxWorkerSize;
 
-
     /**
      * 当前任务中心的状态
      */
@@ -105,6 +104,9 @@ public class TaskDispatchCenter implements TaskManager, Executor {
      */
     private final long timeout;
 
+    /**
+     * Metrics statics for all workers
+     */
     private final MetricRegistry metricRegistry;
 
     private static final int BASE_SHIFT = 21;
@@ -179,7 +181,7 @@ public class TaskDispatchCenter implements TaskManager, Executor {
     }
 
     public static TaskManager getInstance() {
-        return new TaskDispatchCenter("default task manager", 0, 10, -1, TimeUnit.MILLISECONDS);
+        return new TaskDispatchCenter("default task manager", 10, 10, -1, TimeUnit.MILLISECONDS);
     }
 
 

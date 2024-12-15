@@ -1,7 +1,7 @@
 package com.dc.tools.task;
 
 /**
- * 支持设置返回结果的 任务类型
+ * 支持设置返回结果的 任务类型, 建议直接使用 {@link AsyncTask}
  * @param <T>
  */
 public interface ResultAsyncTask <T> extends AsyncTask<T>{

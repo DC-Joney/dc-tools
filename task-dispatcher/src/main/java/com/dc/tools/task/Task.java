@@ -2,6 +2,8 @@ package com.dc.tools.task;
 
 /**
  * 执行的任务
+ *
+ * @author zy
  */
 public interface Task {
 
@@ -36,6 +38,10 @@ public interface Task {
 
     }
 
+    /**
+     * 当存在多个任务时，是否需要对任务进行合并
+     * @param otherTask 被合并的任务信息
+     */
     @Deprecated
     default void merge(Task otherTask) {
 

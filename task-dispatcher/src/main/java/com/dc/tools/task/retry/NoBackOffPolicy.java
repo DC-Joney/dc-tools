@@ -1,8 +1,15 @@
 package com.dc.tools.task.retry;
 
 
-import com.dc.tools.task.retry.BackoffPolicy;
-
+/**
+ * No back off
+ *
+ * @author zy
+ * @see BackoffPolicy
+ * @see FixDelayBackoffPolicy
+ * @see UniformRandomBackOffPolicy
+ * @see JemitterBackoffPolicy
+ */
 public class NoBackOffPolicy implements BackoffPolicy {
 
 

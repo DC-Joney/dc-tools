@@ -18,7 +18,6 @@ public class NormalWorkerMetrics implements TaskWorkerMetrics {
 
     private final Gauge<Long> taskCounts;
 
-    private final Counter counter;
 
     public NormalWorkerMetrics(MetricRegistry metricRegistry, Queue<?> queue) {
         this.counter = metricRegistry.counter("");

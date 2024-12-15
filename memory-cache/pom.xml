@@ -56,6 +56,17 @@
             <artifactId>netty-common</artifactId>
             <groupId>io.netty</groupId>
         </dependency>
+
+        <dependency>
+            <groupId>org.mapdb</groupId>
+            <artifactId>mapdb</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.dc</groupId>
+            <artifactId>task-dispatcher</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
     </dependencies>
 
 </project>

@@ -7,8 +7,12 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.Collection;
 
+/**
+ * 支持单个任务的 {@link MultiTaskProcessor},
+ * 有一些特殊的情况下我们我们的单个task只需要被单个processor处理
+ */
 @RequiredArgsConstructor
-public class SingleTaskProcessor implements MultiTaskProcessor<Task>{
+public class SingleTaskProcessor implements MultiTaskProcessor<Task> {
 
     private final TaskProcessor<Task> taskProcessor;
 
@@ -54,12 +58,12 @@ public class SingleTaskProcessor implements MultiTaskProcessor<Task>{
     }
 
     @Override
-    public boolean process(Task task, TaskContext taskContext) throws Exception{
+    public boolean process(Task task, TaskContext taskContext) throws Exception {
         return taskProcessor.process(task, taskContext);
     }
 
     @Override
     public String processorName() {
-        return MultiTaskProcessor.super.processorName();
+        return taskProcessor.processorName();
     }
 }

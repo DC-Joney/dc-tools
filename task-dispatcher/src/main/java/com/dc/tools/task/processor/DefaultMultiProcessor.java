@@ -12,7 +12,10 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 /**
- * 默认是支持幂等的实现
+ * <p>
+ * 多processor默认实现，支持幂等操作，既task在重试的过程中如果存在多processor处理, 那么可能希望
+ * 已经执行成功的processor不需要被进行处理了，但是如果最终还是处理失败，那么我们希望的可能是全局的回滚操作，或者不做任何操作
+ * </p>
  *
  * @author zy
  */
@@ -39,7 +42,6 @@ public class DefaultMultiProcessor implements MultiTaskProcessor<Task> {
     }
 
 
-
     @Override
     public boolean process(Task task, TaskContext taskContext) {
         boolean success = true;
@@ -63,7 +65,7 @@ public class DefaultMultiProcessor implements MultiTaskProcessor<Task> {
                 if (process) {
                     taskContext.put(processor.processorName() + taskId, true);
                 }
-            }catch (Exception e) {
+            } catch (Exception e) {
                 success = false;
             }
         }
@@ -73,13 +75,13 @@ public class DefaultMultiProcessor implements MultiTaskProcessor<Task> {
 
     @Override
     public MultiTaskProcessor<Task> remove(TaskProcessor<Task> processor) {
-        processors.removeIf(pro-> pro.processorName.equals(processor.processorName()));
+        processors.removeIf(pro -> pro.processorName.equals(processor.processorName()));
         return this;
     }
 
     @Override
     public MultiTaskProcessor<Task> removeProcessor(String processorName) {
-        processors.removeIf(pro-> pro.processorName.equals(processorName));
+        processors.removeIf(pro -> pro.processorName.equals(processorName));
         return this;
     }
 
@@ -106,7 +108,7 @@ public class DefaultMultiProcessor implements MultiTaskProcessor<Task> {
 
     }
 
-    static class NamedTaskProcessor implements Comparable<NamedTaskProcessor>{
+    static class NamedTaskProcessor implements Comparable<NamedTaskProcessor> {
 
         private final String processorName;
 
@@ -116,7 +118,7 @@ public class DefaultMultiProcessor implements MultiTaskProcessor<Task> {
         private final TaskProcessor<Task> processor;
 
 
-        public NamedTaskProcessor( TaskProcessor<Task> processor) {
+        public NamedTaskProcessor(TaskProcessor<Task> processor) {
             this.processorName = processor.processorName();
             this.order = processor.order();
             this.processor = processor;
