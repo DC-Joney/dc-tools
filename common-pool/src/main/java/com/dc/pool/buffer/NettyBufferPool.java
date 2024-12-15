@@ -63,7 +63,7 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
     public NettyBufferPool.PoolBuffer allocate(int size, long maxTimeToBlock, TimeUnit timeUnit) throws InterruptedException {
 
         if (closeState.get()) {
-            throw new AllocateBufferTimeoutException("memory pool is closed");
+            throw new BufferPoolException("memory pool is closed, please create new pool");
         }
 
         //最大等待的时间
@@ -77,22 +77,18 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
         long currentWait = 0;
 
         for (; ; ) {
-
             //当前时间
-            long nowTime = SystemClock.now();
-
+            long nowTime = System.nanoTime();
             long state = usedState.get();
             long usedMemory = state >>> 1;
 
-            boolean notify = false;
-
-            if (currentWait >= maxTimeToBlock) {
-                throw new AllocateBufferTimeoutException("allocate buffer is time out");
+            if (currentWait >= waitNanos) {
+                throw new AllocateBufferTimeoutException("allocate buffer is time out, time is: {}, waitTime is: {}", currentWait / 1000000, waitNanos / 1000000);
             }
 
             //如果内存可以分配则直接返回
             if (usedMemory + size <= maxMemory) {
-                System.out.println(StrUtil.format("current memory: {}，size: {} maxMemory: {}", usedMemory, size, maxMemory));
+                System.out.println(StrUtil.format("free memory: {}，size: {} maxMemory: {}", (maxMemory - usedMemory), size, maxMemory));
                 if ((state & 1) == 0 && usedState.compareAndSet(state, state | 1)) {
                     //计算新的size
                     state += ((long) size << 1);
@@ -114,27 +110,23 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
             //将当前线程添加到队列
             waitQueue.offer(Thread.currentThread());
             //可休眠的时间
-            LockSupport.park(waitNanos - currentWait);
-            System.out.println(StrUtil.format("park notify time: {}", Thread.currentThread()));
+            LockSupport.parkNanos(waitNanos - currentWait);
             //计算已经等待的时间
-            currentWait += SystemClock.now() - nowTime;
+            currentWait += System.nanoTime() - nowTime;
+            System.out.println(StrUtil.format("park notify thread: {}, time is: {}", Thread.currentThread(), currentWait / 1000000));
         }
 
         ByteBuf buffer = allocator.buffer(size);
         return new PoolBuffer(buffer, size);
     }
 
-    private synchronized void notifyThread() {
+    private void notifyThread() {
         Thread waitThread = null;
-        while (waitQueue.peek() != null) {
-            Thread pollThread = waitQueue.poll();
+        while ((waitThread = waitQueue.poll()) != null) {
             //如果线程已经不存活了或者结束了
-            if (!pollThread.isAlive()) {
-                continue;
+            if (waitThread.isAlive()) {
+                break;
             }
-
-            waitThread = pollThread;
-            break;
         }
 
         //如果线程是存活的则唤醒
@@ -154,6 +146,7 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
                     state = 0;
 
                 usedState.set(state >> 1 << 1);
+                notifyThread();
                 break;
             }
 
@@ -161,7 +154,7 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
             Thread.yield();
         }
 
-        notifyThread();
+
     }
 
     @Override
@@ -192,20 +185,17 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
 
     public static void main(String[] args) {
         PooledByteBufAllocator allocator = PooledByteBufAllocator.DEFAULT;
-        NettyBufferPool bufferPool = new NettyBufferPool(allocator, 3 << 10);
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
-        for (int i = 0; i < 10; i++) {
+        NettyBufferPool bufferPool = new NettyBufferPool(allocator, 2000);
+        ExecutorService executorService = Executors.newFixedThreadPool(4);
+        for (int i = 0; i < 4; i++) {
             executorService.execute(() -> {
                 try {
-                    System.out.println("11111");
-                    System.out.println(bufferPool.unallocatedMemory());
-                    PoolBuffer allocate = bufferPool.allocate(512, 2000, TimeUnit.MILLISECONDS);
+                    PoolBuffer allocate = bufferPool.allocate(1000, 2000, TimeUnit.MILLISECONDS);
                     System.out.println(StrUtil.format("thread: {}, allocate: {}", Thread.currentThread(), allocate));
                     TimeUnit.MILLISECONDS.sleep(1500);
                     bufferPool.deallocate(allocate);
                 } catch (Exception e) {
-                    System.err.println(e.getMessage());
-                    log.error("exception cause is: ", e);
+                    e.printStackTrace();
                 }
 
             });

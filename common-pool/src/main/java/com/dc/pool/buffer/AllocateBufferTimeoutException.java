@@ -1,5 +1,7 @@
 package com.dc.pool.buffer;
 
+import cn.hutool.core.util.StrUtil;
+
 /**
  * <p>Allocate buffer exception </p>
  * <p>
@@ -11,6 +13,10 @@ public class AllocateBufferTimeoutException extends BufferPoolException {
 
     public AllocateBufferTimeoutException(String message) {
         super(message);
+    }
+
+    public AllocateBufferTimeoutException(String message, Object...args) {
+        super(StrUtil.format(message, args));
     }
 
     public AllocateBufferTimeoutException(String message, Throwable cause) {
