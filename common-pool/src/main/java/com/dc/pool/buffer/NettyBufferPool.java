@@ -90,6 +90,10 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
             throw new BufferPoolException("memory pool is closed, please create new pool");
         }
 
+        if (size > maxMemory) {
+            throw new BufferPoolException("");
+        }
+
         try {
             //最大等待的时间
             long waitNanos = timeUnit.toNanos(maxTimeToBlock);
@@ -102,6 +106,11 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
             long currentWait = 0;
 
             for (; ; ) {
+
+                if (closeState.get()) {
+                    throw new BufferPoolException("memory pool is closed");
+                }
+
                 //获取当前的时间
                 long nowTime = System.nanoTime();
                 //获取当前的状态
@@ -207,7 +216,7 @@ public class NettyBufferPool implements BufferPool<NettyBufferPool.PoolBuffer> {
                     state = 0;
 
                 //设置释放后的内存大小
-                usedState.set(state >> 1 << 1);
+                usedState.set(state >>> 1 << 1);
                 //唤醒后续线程
                 notifyThread();
                 break;
