@@ -1,14 +1,20 @@
 package com.dc.pool.buffer;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Buffer pool for memory
+ * <p>
+ * 在线程数越多的情况下，比如32线程时，NettyBufferPool 与 NettyLockedBufferPool性能是持平的
+ * 在低线程情况下，NettyBufferPool的性能是高于NettyLockedBufferPool的
  *
  * @author zhangyang
+ * @see NettyBufferPool
+ * @see NettyLockedBufferPool
  */
-public interface BufferPool<BUF> {
+public interface BufferPool<BUF extends PoolBuffer> {
 
     /**
      * 从内存池中获取一块内存，如果内存池没有足够的内存就会一直阻塞直到有足够的内存或者是阻塞时间达到 {@code maxTimeToBlock}
@@ -31,6 +37,24 @@ public interface BufferPool<BUF> {
     }
 
     /**
+     * @param data    需要包装为buffer的数据
+     * @param charset charset
+     * @return 返回包装好的内存数据
+     */
+    default BUF wrapCharSequence(String data, Charset charset, long maxTimeToBlock, TimeUnit timeUnit) throws InterruptedException {
+        ByteBuffer byteBuffer = charset.encode(data);
+        BUF allocate = allocate(byteBuffer.remaining(), maxTimeToBlock, timeUnit);
+        try {
+            allocate.writeByteBuffer(byteBuffer);
+            return allocate;
+        } catch (Exception e) {
+            deallocate(allocate);
+            throw e;
+        }
+    }
+
+
+    /**
      * 将ByteBuffer 归回到内存池中
      *
      * @param buffer 从内存池中获取的内存
@@ -51,5 +75,15 @@ public interface BufferPool<BUF> {
      * Close buffer pool
      */
     void close();
+
+    /**
+     * 内存池名称
+     */
+    String name();
+
+    /**
+     * 当前等待的线程数量
+     */
+    int waitThreads();
 
 }

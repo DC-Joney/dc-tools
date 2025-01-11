@@ -5,7 +5,7 @@ import cn.hutool.core.util.StrUtil;
 /**
  * <p>Allocate buffer exception </p>
  * <p>
- * 当从{@link com.turing.ability.ocr.haoweilai.pool.BufferPool}中获取内存超时的情况下，会抛出此异常
+ * 当从{@link BufferPool}中获取内存超时的情况下，会抛出此异常
  *
  * @author zhangyang
  */

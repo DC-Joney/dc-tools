@@ -255,6 +255,23 @@
                 <version>${metrics.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-core</artifactId>
+                <version>1.14.2</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-generator-annprocess</artifactId>
+                <version>1.37</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.openjdk.jmh</groupId>
+                <artifactId>jmh-core</artifactId>
+                <version>1.37</version>
+            </dependency>
 
             <dependency>
                 <groupId>org.redisson</groupId>

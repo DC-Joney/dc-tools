@@ -37,4 +37,6 @@ public class Power2 {
         int mask = power2 - 1;
         return (x & mask) == 0 ? x : (x & ~mask) + power2;
     }
+
+
 }
