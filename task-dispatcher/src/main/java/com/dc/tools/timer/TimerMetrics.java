@@ -1,9 +1,9 @@
 package com.dc.tools.timer;
 
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.MetricRegistry;
-import com.dc.tools.common.utils.SystemClock;
-import com.dc.tools.common.window.StaticsWindow;
+//import com.codahale.metrics.Meter;
+//import com.codahale.metrics.MetricRegistry;
+//import com.dc.tools.common.utils.SystemClock;
+//import com.dc.tools.common.window.StaticsWindow;
 
 import java.util.concurrent.atomic.LongAdder;
 
@@ -23,12 +23,12 @@ public class TimerMetrics {
      * 滑动窗口用于记录某个时间窗口内的任务
      * TODO: 滑动窗口存在问题不支持负数，需要修改
      */
-    private final StaticsWindow statistics = new StaticsWindow(1000, 32);
-
-    private final MetricRegistry registry = new MetricRegistry();
+//    private final StaticsWindow statistics = new StaticsWindow(1000, 32);
+//
+//    private final MetricRegistry registry = new MetricRegistry();
 
     public TimerMetrics() {
-        Meter meter = registry.meter("test.1");
+//        Meter meter = registry.meter("test.1");
     }
 
 
@@ -36,7 +36,7 @@ public class TimerMetrics {
         allTasks.add(taskCount);
         activeTasks.add(taskCount);
         //向当前窗口添加数据
-        statistics.addCount(SystemClock.now(), taskCount);
+//        statistics.addCount(SystemClock.now(), taskCount);
     }
 
     /**
@@ -46,7 +46,7 @@ public class TimerMetrics {
      */
     public void finish(int taskCount) {
         activeTasks.add(-taskCount);
-        statistics.addCount(SystemClock.now(), -1);
+//        statistics.addCount(SystemClock.now(), -1);
     }
 
     public LongAdder getAllTasks() {

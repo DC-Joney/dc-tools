@@ -1,52 +1,92 @@
 package com.dc.tools.timer;
 
-import com.dc.tools.common.thread.ServiceThread;
-import com.dc.tools.common.utils.SystemClock;
+import cn.hutool.core.date.SystemClock;
+import cn.hutool.core.thread.NamedThreadFactory;
+import com.dc.tools.common.IdGenerator;
+import com.dc.tools.common.RandomIdGenerator;
+import com.dc.tools.common.annotaion.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * delayed timer
+ *
+ * @author zy
+ */
 @Slf4j
-public class DelayedTimer extends ServiceThread implements Timer {
+public class  DelayedTimer extends TimerThread implements Timer,Executor {
 
+    private static final Executor DEFAULT = Executors.newSingleThreadExecutor(new NamedThreadFactory("timer-execute", true));
+
+    /**
+     * 延时的时间轮
+     */
     private final DelayWheel delayWheel;
 
-    private final ExecutorService executorService;
+    /**
+     * 用于执行任务的线程池
+     */
+    private final Executor executor;
 
+    /**
+     * 当前timer的statics
+     */
     private final TimerMetrics metrics;
 
-    private  final Map<Long, DelayedTask> taskMap = new ConcurrentHashMap<>(1024);
+    /**
+     * 用于存储目前所有的任务
+     */
+    private final Map<Long, Task> taskMap = new ConcurrentHashMap<>(1024);
 
-    private final AtomicLong atomicLong = new AtomicLong();
-
+    /**
+     * 用于为每个任务生成相应的id
+     */
+    private final IdGenerator taskIdGenerator = new RandomIdGenerator();
 
     public DelayedTimer(String serviceName) {
-        this(serviceName, Executors.newCachedThreadPool());
+        this(serviceName, DEFAULT);
     }
 
-    public DelayedTimer(String serviceName, ExecutorService threadPool) {
+    public DelayedTimer(String serviceName, Executor executor) {
         super(serviceName);
         this.delayWheel = new DelayWheel();
-        this.executorService = threadPool;
+        this.executor = executor;
         this.metrics = new TimerMetrics();
     }
 
     @Override
-    public void addTask(DelayedTask delayedTask) {
-        //任务的延迟时间
-        long delayTime = delayedTask.delayTime() >> 1;
-        long executeDelayTime = SystemClock.now() + delayTime;
-        long taskId = atomicLong.getAndIncrement();
-        taskMap.put(taskId, delayedTask);
-        delayWheel.addTask(delayedTask.getTaskName(), taskId, executeDelayTime);
-        //记录任务执行的数量
+    public void addTask(FixTimeTask fixTimeTask) {
+        this.addTask(fixTimeTask, fixTimeTask.delayTime(), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public void addTask(Task task) {
         this.metrics.record(1);
+        this.metrics.finish(1);
+        execute(task);
+    }
+
+    @Override
+    public void execute(@NonNull Runnable command) {
+        executor.execute(command);
+    }
+
+    @Override
+    public void addTask(Task task, long delay, TimeUnit timeUnit) {
+        //任务的延迟时间
+        long delayTime = timeUnit.toMillis(delay);
+        long nowTime = SystemClock.now();
+        long taskId = taskIdGenerator.nextId();
+        taskMap.put(taskId, task);
+        //获取当前的时间
+        delayWheel.addTask(task.taskName(), taskId, nowTime + delayTime);
+        metrics.record(1);
         wakeup();
     }
 
@@ -62,35 +102,25 @@ public class DelayedTimer extends ServiceThread implements Timer {
 
     @Override
     public void run() {
-
         while (isRunning()) {
-
-            long version = getVersion();
-
             //当前时间
             long nowTime = SystemClock.now();
 
+            long version = getVersion();
+
             //获取超时的任务
             List<DelayWheel.Task> expireTasks = delayWheel.advance(nowTime);
-//            log.info("expire tasks: " + expireTasks);
             metrics.finish(expireTasks.size());
+            log.debug("Delay tasks will be executed, delay tasks is: {}", expireTasks);
 
-            //下发超时任务, 或者通过多线程处理延迟任务 都可以
+            //执行过期的任务
             for (DelayWheel.Task expireTask : expireTasks) {
-                DelayedTask delayedTask = taskMap.remove(expireTask.getTaskId());
-                //如果低1bit==1表示是定时任务，则需要再次执行
-                if ((delayedTask.delayTime() & 1) == 1) {
-                    addTask(delayedTask);
-                }
-
-                delayedTask.run();
-
-//                executorService.execute(delayTask);
+                Task delayedTask = taskMap.remove(expireTask.getTaskId());
+                execute(delayedTask);
             }
 
             //查找时间轮中最早的时间
             long earliestTime = delayWheel.findEarliestTime();
-//            log.info("now time: {}, earliest time: {}",nowTime, earliestTime);
 
             //如果时间轮中没有任务则阻塞
             if (earliestTime < 0) {
@@ -101,7 +131,6 @@ public class DelayedTimer extends ServiceThread implements Timer {
 
             //如果时间轮中有任务则阻塞等待
             if (earliestTime > 0) {
-//                log.info("delay time is: " + earliestTime);
                 //进行睡眠
                 await(version, (int) earliestTime, TimeUnit.MILLISECONDS);
             }

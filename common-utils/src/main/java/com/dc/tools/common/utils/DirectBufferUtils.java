@@ -1,7 +1,6 @@
 package com.dc.tools.common.utils;
 
-import sun.misc.Cleaner;
-import sun.nio.ch.DirectBuffer;
+import io.netty.util.internal.PlatformDependent;
 
 import java.nio.ByteBuffer;
 
@@ -12,14 +11,24 @@ import java.nio.ByteBuffer;
  */
 public class DirectBufferUtils {
 
+    @Deprecated
     public static void release(ByteBuffer byteBuffer) {
-        //如果是堆外内存则将该部分内存释放
-        if (byteBuffer instanceof DirectBuffer) {
-            Cleaner cleaner = ((DirectBuffer) byteBuffer).cleaner();
-            if (cleaner != null) {
-                cleaner.clean();
+        safeRelease(byteBuffer);
+    }
+
+    /**
+     * 释放内存
+     * @param byteBuffer 需要被释放的内存
+     */
+    public static void safeRelease(ByteBuffer byteBuffer) {
+        if (byteBuffer != null) {
+            try {
+                PlatformDependent.freeDirectBuffer(byteBuffer);
+            }catch (Exception ex) {
+                PlatformDependent.freeDirectNoCleaner(byteBuffer);
             }
         }
+
     }
 
 }

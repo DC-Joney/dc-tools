@@ -185,6 +185,16 @@ public final class DataSize implements Comparable<DataSize> {
     }
 
     /**
+     * Checks if this size is negative, excluding zero.
+     *
+     * @return true if this size has a size less than zero bytes
+     */
+    public boolean isZero() {
+        return this.bytes <= 0;
+    }
+
+
+    /**
      * Return the number of bytes in this instance.
      *
      * @return the number of bytes

@@ -1,14 +1,15 @@
 package com.dc.tools.common.utils;
 
 import cn.hutool.core.util.StrUtil;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
@@ -17,25 +18,43 @@ import java.util.function.Supplier;
  *
  * @author zhangyang
  */
-@Slf4j
 @ThreadSafe
 public class CloseTasks implements Closeable {
 
+    private static final Logger log = LoggerFactory.getLogger(CloseTasks.class);
+
+
+    private static final String DEFAULT_MANAGER_NAME = "DEFAULT_CLOSE_MANAGER";
+
     /**
-     * 最多放256个关闭任务
+     * 用于存放关闭的任务
      */
-    private final ConcurrentList<CloseTaskWrapper> closeTasks;
+    private final Deque<CloseTaskWrapper> closeTasks;
+
+    /**
+     * manager name for all close task
+     */
+    private final String managerName;
 
     public static CloseTasks empty() {
-        return new CloseTasks(null);
+        return new CloseTasks(DEFAULT_MANAGER_NAME);
     }
 
     public CloseTasks() {
-        this.closeTasks = new ConcurrentList<>();
+        this.closeTasks = new ConcurrentLinkedDeque<>();
+        this.managerName = DEFAULT_MANAGER_NAME;
     }
 
-    public CloseTasks(ConcurrentList<CloseTaskWrapper> closeTasks) {
-        this.closeTasks = closeTasks;
+    public CloseTasks(String managerName, Object... args) {
+        this.closeTasks = new ConcurrentLinkedDeque<>();
+        this.managerName = StrUtil.format(managerName, args);
+    }
+
+    public CloseTasks(String taskManagerName, Collection<CloseTaskWrapper> closeTasks) {
+        Assert.notNull(closeTasks, "closeTasks cannot be null");
+        this.managerName = taskManagerName;
+        this.closeTasks = new ConcurrentLinkedDeque<>();
+        this.closeTasks.addAll(closeTasks);
     }
 
     /**
@@ -45,7 +64,7 @@ public class CloseTasks implements Closeable {
      * @param taskName 任务名称
      */
     public CloseTasks addTask(CloseTask task, String taskName, Object... args) {
-        closeTasks.add(CloseTaskWrapper.create(task, StrUtil.format(taskName, args)));
+        closeTasks.offerLast(CloseTaskWrapper.create(managerName, task, StrUtil.format(taskName, args)));
         return this;
     }
 
@@ -56,14 +75,14 @@ public class CloseTasks implements Closeable {
      * @param taskName 任务名称
      */
     public CloseTasks addFirst(CloseTask task, String taskName, Object... args) {
-        closeTasks.addFirst(CloseTaskWrapper.create(task, StrUtil.format(taskName, args)));
+        closeTasks.offerFirst(CloseTaskWrapper.create(managerName, task, StrUtil.format(taskName, args)));
         return this;
     }
 
     /**
      * 添加需要被关闭的任务
      *
-     * @param tasks    其他的closeTasks任务
+     * @param tasks 其他的closeTasks任务
      */
     public CloseTasks addTasks(CloseTasks tasks) {
         closeTasks.addAll(tasks.closeTasks);
@@ -77,12 +96,12 @@ public class CloseTasks implements Closeable {
      * @param taskName 任务名称
      */
     @Deprecated
-    public CloseTasks addTask(Supplier<Closeable> supplier, String taskName, Object... args) {
+    public CloseTasks addClosedTask(Supplier<Closeable> supplier, String taskName, Object... args) {
         Closeable closeable = null;
 
         try {
             closeable = supplier.get();
-            closeTasks.add(CloseTaskWrapper.create(closeable::close, StrUtil.format(taskName, args)));
+            closeTasks.add(CloseTaskWrapper.create(managerName, closeable::close, StrUtil.format(taskName, args)));
         } catch (Exception e) {
             try {
                 if (closeable != null) {
@@ -96,9 +115,8 @@ public class CloseTasks implements Closeable {
         return this;
     }
 
-
-    public static CloseTasks from(CloseTask task, String taskName) {
-        return new CloseTasks().addTask(task, taskName);
+    public void removeAllTasks() {
+        closeTasks.clear();
     }
 
     @Override
@@ -106,11 +124,12 @@ public class CloseTasks implements Closeable {
         for (CloseTaskWrapper closeTask : closeTasks) {
             try {
                 closeTask.close();
-                log.info("Close task name: {}", closeTask.taskName);
             } catch (Exception ex) {
-                log.warn("Close task of {} error, please check it, cause is: ", closeTask.taskName, ex);
+                log.error("Close manager: {}, close task of {} error, please check it, cause is: ", managerName, closeTask.taskName, ex);
             }
         }
+
+        closeTasks.clear();
     }
 
     /**
@@ -130,23 +149,46 @@ public class CloseTasks implements Closeable {
     }
 
 
-    @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-    @RequiredArgsConstructor(staticName = "create")
     public static class CloseTaskWrapper implements Closeable {
 
-        final CloseTask closeTask;
+        /**
+         * 需要被关闭的任务
+         */
+        private final CloseTask closeTask;
 
-        final String taskName;
-
+        /**
+         * 任务名称
+         */
+        private final String taskName;
         /**
          * 主要为了保护当前task避免被执行多次而导致出错
          */
-        AtomicBoolean CLOSE = new AtomicBoolean(false);
+        private final AtomicBoolean close = new AtomicBoolean(false);
+
+        private final String managerName;
+
+        public CloseTaskWrapper(String managerName, CloseTask closeTask, String taskName) {
+            this.closeTask = closeTask;
+            this.taskName = taskName;
+            this.managerName = managerName;
+        }
+
+
+        public static CloseTaskWrapper create(CloseTask closeTask, String taskName) {
+            return new CloseTaskWrapper(DEFAULT_MANAGER_NAME, closeTask, taskName);
+        }
+
+        public static CloseTaskWrapper create(String managerName, CloseTask closeTask, String taskName) {
+            return new CloseTaskWrapper(managerName, closeTask, taskName);
+        }
+
 
         @Override
         public void close() throws IOException {
-            if (CLOSE.compareAndSet(false, true))
+            if (close.compareAndSet(false, true)) {
+                log.info("Close manager: {} ,Close task name: {}", managerName, taskName);
                 closeTask.close();
+            }
         }
     }
 
